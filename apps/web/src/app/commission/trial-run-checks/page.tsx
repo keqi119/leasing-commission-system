@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { buildTrialRunCheckReport, createDefaultImportContext } from "@/server/imports";
 import { formatBps, formatCny } from "@/server/sample";
 
@@ -10,7 +11,7 @@ export default function TrialRunChecksPage() {
         <div>
           <h1 className="page-title">试运行数据校验</h1>
           <p className="page-subtitle">
-            HR 和财务在正式试算前检查订单、收入、外调利润、押金和未审核数据是否干净。
+            HR 和财务在正式试算前检查订单、收入、外调利润、押金和未审核数据是否干净；通过后进入试运行闭环。
           </p>
         </div>
         <span className={`badge ${report.canStartHrCalculation ? "green" : "amber"}`}>
@@ -66,7 +67,10 @@ export default function TrialRunChecksPage() {
           </div>
           <div className="panel-body">
             {report.blockingReasons.length === 0 ? (
-              <p className="empty-state">没有阻断项，可以进入 HR 试算。</p>
+              <p className="empty-state">
+                没有阻断项，可以进入 HR 试算。下一步由 HR 在{" "}
+                <Link href="/commission/trial-runs">试运行闭环</Link> 中留存问题、重算和报告。
+              </p>
             ) : (
               <ul className="workflow-list">
                 {report.blockingReasons.map((reason) => <li key={reason}>{reason}</li>)}

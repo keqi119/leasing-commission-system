@@ -170,6 +170,76 @@ enum ImportBatchRowStatus {
   ERROR
 }
 
+enum TrialRunStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TrialRunResult {
+  PASS
+  PASS_WITH_LIMITATIONS
+  FAIL
+}
+
+enum TrialRunIssueSeverity {
+  BLOCKER
+  MAJOR
+  MINOR
+  INFO
+}
+
+enum TrialRunIssueCategory {
+  IMPORT
+  ORDER
+  REVENUE
+  DEPOSIT
+  EXTERNAL_PROFIT
+  RECEIVABLE
+  TARGET
+  SETTLEMENT
+  EXPORT
+  PERMISSION
+}
+
+enum TrialRunIssueStatus {
+  OPEN
+  FIXING
+  RESOLVED
+  ACCEPTED_RISK
+}
+
+enum CommissionAdjustmentType {
+  DATA_CORRECTION
+  BOSS_DECISION
+  RECEIVABLE_FREEZE
+  DEPOSIT_RISK
+  SPECIAL_REWARD
+  SPECIAL_DEDUCTION
+  ROUNDING_CORRECTION
+  OTHER
+}
+
+enum CommissionAdjustmentDirection {
+  ADD
+  DEDUCT
+}
+
+enum CommissionAdjustmentStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+enum PeriodReopenStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Department {
   id        String   @id @default(cuid())
   name      String
@@ -484,6 +554,108 @@ model ImportBatchRow {
   batch          ImportBatch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@index([batchId])
+}
+
+model TrialRun {
+  id            String          @id @default(cuid())
+  periodId      String
+  departmentId  String
+  name          String
+  status        TrialRunStatus  @default(OPEN)
+  startedBy     String
+  startedAt     DateTime        @default(now())
+  completedBy   String?
+  completedAt   DateTime?
+  result        TrialRunResult?
+  summary       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model TrialRunIssue {
+  id          String                @id @default(cuid())
+  trialRunId  String
+  severity    TrialRunIssueSeverity
+  category    TrialRunIssueCategory
+  title       String
+  description String
+  ownerRole   EmployeeRole
+  status      TrialRunIssueStatus   @default(OPEN)
+  createdBy   String
+  createdAt   DateTime              @default(now())
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  resolution  String?
+
+  @@index([trialRunId])
+}
+
+model TrialRunReport {
+  id                         String         @id @default(cuid())
+  trialRunId                 String
+  periodId                   String
+  departmentId               String
+  gitCommit                  String
+  dataSourceSummary          String
+  importBatchSummary         String?
+  trialRunRunNos             String
+  approvalRunNo              String
+  targetAmountCents          Int
+  confirmedRevenueAmountCents Int
+  achievementRateBps         Int
+  commissionPoolCents        Int
+  currentPayoutTotalCents    Int
+  futurePayoutTotalCents     Int
+  adjustmentTotalCents       Int
+  frozenTotalCents           Int
+  issueSummary               String
+  residualRiskSummary        String?
+  result                     TrialRunResult
+  acceptedBy                 String
+  acceptedAt                 DateTime
+  markdown                   String
+  createdAt                  DateTime       @default(now())
+
+  @@index([trialRunId])
+}
+
+model CommissionAdjustment {
+  id             String                        @id @default(cuid())
+  periodId       String
+  settlementRunId String?
+  userId         String
+  departmentId   String
+  adjustmentType CommissionAdjustmentType
+  amountCents    Int
+  direction      CommissionAdjustmentDirection
+  reason         String
+  evidenceUrl    String?
+  status         CommissionAdjustmentStatus    @default(DRAFT)
+  requestedBy    String
+  requestedAt    DateTime                      @default(now())
+  approvedBy     String?
+  approvedAt     DateTime?
+  appliedRunId   String?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+
+  @@index([periodId])
+  @@index([appliedRunId])
+}
+
+model PeriodReopenRequest {
+  id          String             @id @default(cuid())
+  periodId    String
+  requestedBy String
+  requestedAt DateTime           @default(now())
+  reason      String
+  status      PeriodReopenStatus @default(PENDING)
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([periodId])
 }
 
 model CommissionOperationLog {

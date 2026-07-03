@@ -36,6 +36,7 @@ export const navItems = [
   { href: "/commission/target-adjustments", label: "指标调整", icon: Scale },
   { href: "/commission/settlements", label: "HR 试算", icon: Gauge },
   { href: "/commission/trial-run-checks", label: "试运行校验", icon: ListChecks },
+  { href: "/commission/trial-runs", label: "试运行闭环", icon: ShieldCheck },
   { href: "/commission/approvals", label: "老板审批", icon: ClipboardCheck },
   { href: "/commission/exports", label: "奖金导出", icon: Download }
 ] as const;
