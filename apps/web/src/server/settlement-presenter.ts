@@ -6,6 +6,7 @@ export interface SettlementDisplayMeta {
   approvedBy: string;
   approvedAt: string;
   departmentName: string;
+  adjustmentReasonsByUserId?: Record<string, string[]>;
 }
 
 export interface SettlementDisplayRow {
@@ -73,6 +74,13 @@ export function buildSettlementDisplayRows(
     approvalStatus: meta.approvalStatus,
     approvedBy: meta.approvedBy,
     approvedAt: meta.approvedAt,
-    remark: line.remark
+    remark: buildDisplayRemark(line.remark, meta.adjustmentReasonsByUserId?.[line.userId])
   }));
+}
+
+function buildDisplayRemark(baseRemark: string, adjustmentReasons: string[] | undefined): string {
+  if (!adjustmentReasons || adjustmentReasons.length === 0) {
+    return baseRemark;
+  }
+  return `${baseRemark}；调整原因：${adjustmentReasons.join("；")}`;
 }

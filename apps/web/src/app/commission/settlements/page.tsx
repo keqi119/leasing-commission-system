@@ -1,10 +1,12 @@
-﻿import { acceptanceDepartmentName } from "@lcs/commission-engine";
+import { acceptanceDepartmentName } from "@lcs/commission-engine";
+import Link from "next/link";
 import {
   acceptanceScenarioSettlement,
   formatBps,
   formatCny
 } from "@/server/sample";
 import { buildSettlementDisplayRows } from "@/server/settlement-presenter";
+import { createSampleTrialRunWorkflowStore, getSettlementRunDiff } from "@/server/trial-run-workflow";
 
 const pageMeta = {
   approvalStatus: "PENDING_BOSS_APPROVAL",
@@ -20,6 +22,10 @@ function formatYuan(yuan: number): string {
 export default function SettlementsPage() {
   const settlement = acceptanceScenarioSettlement;
   const displayRows = buildSettlementDisplayRows(settlement, pageMeta);
+  const workflow = createSampleTrialRunWorkflowStore();
+  const rejectedRun = workflow.settlementRuns.find((run) => run.status === "REJECTED");
+  const approvedRun = workflow.settlementRuns.find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
+  const diff = rejectedRun && approvedRun ? getSettlementRunDiff(rejectedRun, approvedRun) : null;
 
   return (
     <>
@@ -137,6 +143,43 @@ export default function SettlementsPage() {
                 <th>审批时间</th>
                 <td>{pageMeta.approvedAt}</td>
               </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <h2>审批闭环版本</h2>
+          <span className="badge amber">下一步：老板审批 / HR 重算</span>
+        </div>
+        <div className="panel-body">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>runNo</th>
+                <th>状态</th>
+                <th>说明</th>
+                <th>差异</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workflow.settlementRuns.map((run) => (
+                <tr key={run.id}>
+                  <td>{run.runNo}</td>
+                  <td>{run.status}</td>
+                  <td>{run.rejectionReason ?? "审批通过后锁定，导出绑定该版本"}</td>
+                  <td>
+                    {run.id === approvedRun?.id && diff ? (
+                      <Link className="button-link secondary" href={`/commission/settlements/${run.id}/diff`}>
+                        查看差异
+                      </Link>
+                    ) : (
+                      "保留历史"
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

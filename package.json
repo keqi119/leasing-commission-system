@@ -6,7 +6,7 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --filter @lcs/web dev",
-    "test": "vitest run packages/commission-engine/src/settlement.test.ts tests/acceptance tests/imports tests/trial-run",
+    "test": "vitest run packages/commission-engine/src/settlement.test.ts tests/acceptance tests/imports tests/trial-run tests/approval-loop tests/adjustments tests/trial-runs",
     "typecheck": "pnpm -r --if-present typecheck",
     "prisma:validate": "pnpm --filter @lcs/database prisma:validate",
     "prisma:generate": "pnpm --filter @lcs/database prisma:generate",
