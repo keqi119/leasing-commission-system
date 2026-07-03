@@ -6,7 +6,6 @@ import {
   importTypes,
   type ImportType
 } from "../../../../../server/imports";
-import { requirePermission } from "../../../../../server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +14,6 @@ function isImportType(value: string | null): value is ImportType {
 }
 
 export async function GET(request: Request) {
-  const permission = requirePermission(request, "commission:period:read");
-  if (!permission.ok) {
-    return permission.response;
-  }
-
   const url = new URL(request.url);
   const importType = url.searchParams.get("type");
   const format = url.searchParams.get("format") ?? "json";

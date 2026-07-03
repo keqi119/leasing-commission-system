@@ -18,6 +18,18 @@ import { GET as getTemplatesApi } from "../../apps/web/src/app/api/commission/im
 const context = createDefaultImportContext();
 
 describe("LCS-P1-H03 import templates and workflow", () => {
+  test("allows browser template downloads without custom auth headers", async () => {
+    const response = await getTemplatesApi(
+      new Request("http://localhost/api/commission/imports/templates?type=orders&format=csv")
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/csv");
+    expect(await response.text()).toContain(
+      getImportTemplates().find((template) => template.importType === "orders")?.columns[2]
+    );
+  });
+
   test("downloads xlsx and csv import templates with business-friendly Chinese headers", async () => {
     const response = await getTemplatesApi(
       new Request("http://localhost/api/commission/imports/templates", {
