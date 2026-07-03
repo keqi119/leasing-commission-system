@@ -18,6 +18,18 @@ import { GET as getTemplatesApi } from "../../apps/web/src/app/api/commission/im
 const context = createDefaultImportContext();
 
 describe("LCS-P1-H03 import templates and workflow", () => {
+  test("allows browser template downloads without custom auth headers", async () => {
+    const response = await getTemplatesApi(
+      new Request("http://localhost/api/commission/imports/templates?type=orders&format=csv")
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/csv");
+    expect(await response.text()).toContain(
+      getImportTemplates().find((template) => template.importType === "orders")?.columns[2]
+    );
+  });
+
   test("downloads xlsx and csv import templates with business-friendly Chinese headers", async () => {
     const response = await getTemplatesApi(
       new Request("http://localhost/api/commission/imports/templates", {
@@ -66,6 +78,222 @@ describe("LCS-P1-H03 import templates and workflow", () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(workbookBuffer);
     expect(workbook.getWorksheet("订单台账")?.getRow(1).values.slice(1)).toContain("应收租金");
+  });
+
+  test("adds xlsx dropdown options for every enum-like template field", async () => {
+    const expectedDropdowns: Array<{
+      importType: Parameters<typeof buildTemplateWorkbook>[0];
+      worksheetName: string;
+      fields: Record<string, string[]>;
+    }> = [
+      {
+        importType: "employees",
+        worksheetName: "员工档案",
+        fields: {
+          岗位角色: ["老板", "销售", "销售经理", "财务", "资管", "HR", "管理员"],
+          是否参与提成: ["是", "否"],
+          在职状态: ["在职", "停职", "离职"]
+        }
+      },
+      {
+        importType: "vehicles",
+        worksheetName: "车辆档案",
+        fields: {
+          车辆来源: ["自有", "外调"],
+          权属类型: ["公司", "第三方", "个人"],
+          车辆状态: ["正常", "维修", "停运", "下线"]
+        }
+      },
+      {
+        importType: "targets",
+        worksheetName: "收入指标",
+        fields: {
+          指标来源: ["手工录入", "邮件确认", "已审批调整"],
+          是否纳入: ["是", "否"]
+        }
+      },
+      {
+        importType: "orders",
+        worksheetName: "订单台账",
+        fields: {
+          车辆来源: ["自有", "外调"],
+          计费方式: ["月租", "日租", "固定周期"],
+          订单状态: ["草稿", "已提交", "进行中", "已完成", "已取消"]
+        }
+      },
+      {
+        importType: "revenue",
+        worksheetName: "租金收入",
+        fields: {
+          财务审核状态: ["待审核", "已审核", "已驳回"],
+          收入口径: ["本期租金", "历史欠款本月回收"],
+          是否参与提成: ["是", "否"]
+        }
+      },
+      {
+        importType: "external-profit",
+        worksheetName: "外调利润回款",
+        fields: {
+          是否参与提成: ["是", "否"]
+        }
+      },
+      {
+        importType: "deposits",
+        worksheetName: "押金台账",
+        fields: {
+          退还状态: ["暂存", "部分退还", "已退还", "争议"]
+        }
+      },
+      {
+        importType: "vehicle-events",
+        worksheetName: "车辆状态流水",
+        fields: {
+          状态类型: ["维修", "停运", "下线", "上线", "其他"]
+        }
+      }
+    ];
+
+    for (const expected of expectedDropdowns) {
+      const workbookBuffer = await buildTemplateWorkbook(expected.importType);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(workbookBuffer);
+      const worksheet = workbook.getWorksheet(expected.worksheetName);
+      expect(worksheet, expected.worksheetName).toBeDefined();
+
+      for (const [field, options] of Object.entries(expected.fields)) {
+        const columnIndex = worksheet!.getRow(1).values.findIndex((value) => value === field);
+        expect(columnIndex, `${expected.importType}.${field}`).toBeGreaterThan(0);
+        expect(worksheet!.getCell(2, columnIndex).dataValidation).toMatchObject({
+          type: "list",
+          allowBlank: true,
+          formulae: [`"${options.join(",")}"`]
+        });
+      }
+    }
+  });
+
+  test("rejects invalid enum values during import preview", () => {
+    const cases: Array<{
+      importType: Parameters<typeof previewImportRows>[0];
+      row: Record<string, string>;
+      invalidFields: string[];
+    }> = [
+      {
+        importType: "employees",
+        row: {
+          部门: "租赁销售部",
+          员工姓名: "测试员工",
+          岗位角色: "司机",
+          是否参与提成: "也许",
+          在职状态: "待入职"
+        },
+        invalidFields: ["岗位角色", "是否参与提成", "在职状态"]
+      },
+      {
+        importType: "vehicles",
+        row: {
+          车牌号: "沪A-H03Z",
+          车架号: "VIN-H03Z",
+          品牌: "测试品牌",
+          车型: "测试车型",
+          车辆来源: "租赁",
+          权属类型: "未知",
+          车辆状态: "待定",
+          月度目标: "10000"
+        },
+        invalidFields: ["车辆来源", "权属类型", "车辆状态"]
+      },
+      {
+        importType: "targets",
+        row: {
+          考核周期: "2026-04",
+          部门: "租赁销售部",
+          车牌号: "沪A-H03A",
+          收入指标: "519000",
+          指标来源: "系统生成",
+          是否纳入: "可能"
+        },
+        invalidFields: ["指标来源", "是否纳入"]
+      },
+      {
+        importType: "orders",
+        row: {
+          考核周期: "2026-04",
+          部门: "租赁销售部",
+          订单号: "TRIAL-INVALID-ENUM",
+          销售姓名: "销售 A",
+          客户名称: "枚举错误客户",
+          车牌号: "沪A-H03A",
+          车辆来源: "租赁",
+          计费方式: "包月",
+          租赁开始日期: "2026-04-01",
+          租赁结束日期: "2026-04-30",
+          应收租金: "1000",
+          订单状态: "待确认"
+        },
+        invalidFields: ["车辆来源", "计费方式", "订单状态"]
+      },
+      {
+        importType: "revenue",
+        row: {
+          考核周期: "2026-04",
+          订单号: "ACC-202604-A-OWNED",
+          销售姓名: "销售 A",
+          收款金额: "1000",
+          收款日期: "2026-04-20",
+          公司账户: "公司账户",
+          财务审核状态: "已复核",
+          收入口径: "其他收入",
+          是否参与提成: "也许"
+        },
+        invalidFields: ["财务审核状态", "收入口径", "是否参与提成"]
+      },
+      {
+        importType: "external-profit",
+        row: {
+          考核周期: "2026-04",
+          订单号: "ACC-202604-C-EXTERNAL",
+          销售姓名: "销售 C",
+          外调利润金额: "1000",
+          打回公司日期: "2026-04-20",
+          公司账户: "公司账户",
+          是否参与提成: "可能"
+        },
+        invalidFields: ["是否参与提成"]
+      },
+      {
+        importType: "deposits",
+        row: {
+          考核周期: "2026-04",
+          订单号: "ACC-202604-A-OWNED",
+          销售姓名: "销售 A",
+          押金金额: "1000",
+          暂管人: "销售 A",
+          收取日期: "2026-04-20",
+          退还金额: "0",
+          退还状态: "待处理"
+        },
+        invalidFields: ["退还状态"]
+      },
+      {
+        importType: "vehicle-events",
+        row: {
+          考核周期: "2026-04",
+          车牌号: "沪A-H03A",
+          状态类型: "保养",
+          开始日期: "2026-04-10"
+        },
+        invalidFields: ["状态类型"]
+      }
+    ];
+
+    for (const item of cases) {
+      const preview = previewImportRows(item.importType, [item.row], createDefaultImportContext());
+      expect(preview.errorRows, item.importType).toBe(1);
+      expect(preview.rows[0].errors.filter((error) => error.code === "INVALID_ENUM_VALUE").map((error) => error.field)).toEqual(
+        item.invalidFields
+      );
+    }
   });
 
   test("previews a valid order template before committing it as a traceable batch", () => {
