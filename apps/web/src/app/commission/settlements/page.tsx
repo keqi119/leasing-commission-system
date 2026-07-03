@@ -1,11 +1,25 @@
+﻿import { acceptanceDepartmentName } from "@lcs/commission-engine";
 import {
   acceptanceScenarioSettlement,
   formatBps,
   formatCny
 } from "@/server/sample";
+import { buildSettlementDisplayRows } from "@/server/settlement-presenter";
+
+const pageMeta = {
+  approvalStatus: "PENDING_BOSS_APPROVAL",
+  approvedBy: "待老板审批",
+  approvedAt: "待审批",
+  departmentName: acceptanceDepartmentName
+};
+
+function formatYuan(yuan: number): string {
+  return formatCny(Math.round(yuan * 100));
+}
 
 export default function SettlementsPage() {
   const settlement = acceptanceScenarioSettlement;
+  const displayRows = buildSettlementDisplayRows(settlement, pageMeta);
 
   return (
     <>
@@ -13,10 +27,10 @@ export default function SettlementsPage() {
         <div>
           <h1 className="page-title">HR 提成试算</h1>
           <p className="page-subtitle">
-            本页展示计算快照字段，API 导出时使用同一份快照结果。
+            本页展示计算快照字段，页面、API 和导出表使用同一套计算结果。
           </p>
         </div>
-        <span className="badge amber">PENDING_BOSS_APPROVAL</span>
+        <span className="badge amber">{pageMeta.approvalStatus}</span>
       </header>
 
       <section className="metric-grid">
@@ -62,18 +76,18 @@ export default function SettlementsPage() {
               </tr>
             </thead>
             <tbody>
-              {settlement.lines.map((line) => (
-                <tr key={line.userId}>
-                  <td>{line.employeeName}</td>
-                  <td>{formatCny(line.confirmedContributionAmountCents)}</td>
-                  <td>{formatBps(line.contributionRateBps)}</td>
-                  <td>{formatCny(line.grossCommissionCents)}</td>
-                  <td>{formatCny(line.currentPayoutCents)}</td>
-                  <td>{formatCny(line.quarterlyDeferredCents)}</td>
-                  <td>{formatCny(line.yearEndDeferredCents)}</td>
-                  <td>{formatCny(line.frozenAmountCents)}</td>
-                  <td>{formatCny(line.finalCurrentPayableCents)}</td>
-                  <td>{formatCny(line.futurePayoutCents)}</td>
+              {displayRows.map((row) => (
+                <tr key={row.employeeName}>
+                  <td>{row.employeeName}</td>
+                  <td>{formatYuan(row.personalContributionYuan)}</td>
+                  <td>{row.contributionRateText}</td>
+                  <td>{formatYuan(row.grossCommissionYuan)}</td>
+                  <td>{formatYuan(row.currentPayoutYuan)}</td>
+                  <td>{formatYuan(row.quarterlyDeferredYuan)}</td>
+                  <td>{formatYuan(row.yearEndDeferredYuan)}</td>
+                  <td>{formatYuan(row.frozenAmountYuan)}</td>
+                  <td>{formatYuan(row.finalCurrentPayableYuan)}</td>
+                  <td>{formatYuan(row.futurePayoutYuan)}</td>
                 </tr>
               ))}
             </tbody>
@@ -109,15 +123,15 @@ export default function SettlementsPage() {
               </tr>
               <tr>
                 <th>审批状态</th>
-                <td>PENDING_BOSS_APPROVAL</td>
+                <td>{pageMeta.approvalStatus}</td>
               </tr>
               <tr>
                 <th>审批人</th>
-                <td>待老板审批</td>
+                <td>{pageMeta.approvedBy}</td>
               </tr>
               <tr>
                 <th>审批时间</th>
-                <td>待审批</td>
+                <td>{pageMeta.approvedAt}</td>
               </tr>
             </tbody>
           </table>
@@ -126,4 +140,3 @@ export default function SettlementsPage() {
     </>
   );
 }
-

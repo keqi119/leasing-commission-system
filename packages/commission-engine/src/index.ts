@@ -334,3 +334,4 @@ function buildLineRemark(confirmedContributionAmountCents: number): string {
 
 export type * from "./types";
 
+export * from "./acceptance-fixture";

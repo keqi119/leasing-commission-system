@@ -448,4 +448,3 @@ model CommissionOperationLog {
   afterJson    String?
   createdAt    DateTime @default(now())
 }
-
