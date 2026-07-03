@@ -187,6 +187,8 @@ function createSchema(db: { run(sql: string): void }) {
     CREATE TABLE CommissionSettlementLine (id TEXT PRIMARY KEY, settlementRunId TEXT NOT NULL, userId TEXT NOT NULL, roleInSettlement TEXT NOT NULL, confirmedContributionAmountCents INTEGER NOT NULL, contributionRateBps INTEGER NOT NULL, grossCommissionCents INTEGER NOT NULL, currentPayoutCents INTEGER NOT NULL, quarterlyDeferredCents INTEGER NOT NULL, yearEndDeferredCents INTEGER NOT NULL, otherDeferredCents INTEGER NOT NULL, futurePayoutCents INTEGER NOT NULL, frozenAmountCents INTEGER NOT NULL, adjustmentAmountCents INTEGER NOT NULL, finalCurrentPayableCents INTEGER NOT NULL, remark TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
     CREATE TABLE CommissionApprovalLog (id TEXT PRIMARY KEY, targetType TEXT NOT NULL, targetId TEXT NOT NULL, action TEXT NOT NULL, operatorId TEXT NOT NULL, operatorRole TEXT NOT NULL, comment TEXT, createdAt TEXT NOT NULL);
     CREATE TABLE CommissionExportRecord (id TEXT PRIMARY KEY, settlementRunId TEXT NOT NULL, exportType TEXT NOT NULL, fileName TEXT NOT NULL, fileUrl TEXT NOT NULL, exportedBy TEXT NOT NULL, exportedAt TEXT NOT NULL);
+    CREATE TABLE ImportBatch (id TEXT PRIMARY KEY, importType TEXT NOT NULL, fileName TEXT NOT NULL, fileHash TEXT NOT NULL, status TEXT NOT NULL, dryRun INTEGER NOT NULL, totalRows INTEGER NOT NULL, validRows INTEGER NOT NULL, errorRows INTEGER NOT NULL, createdBy TEXT NOT NULL, createdAt TEXT NOT NULL, committedBy TEXT, committedAt TEXT, remark TEXT);
+    CREATE TABLE ImportBatchRow (id TEXT PRIMARY KEY, batchId TEXT NOT NULL, rowNumber INTEGER NOT NULL, rawJson TEXT NOT NULL, normalizedJson TEXT, status TEXT NOT NULL, errorCode TEXT, errorMessage TEXT, createdAt TEXT NOT NULL);
   `);
 }
 

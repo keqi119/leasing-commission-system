@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { EntryLedgerPage } from "@/components/EntryLedgerPage";
 
 export default function RevenuePage() {
-  return <ModulePage moduleKey="revenue" />;
+  return <EntryLedgerPage kind="revenue" />;
 }
-

@@ -156,6 +156,20 @@ enum ExportType {
   CSV
 }
 
+enum ImportBatchStatus {
+  UPLOADED
+  PREVIEWED
+  VALIDATION_FAILED
+  COMMITTED
+  FAILED
+  CANCELLED
+}
+
+enum ImportBatchRowStatus {
+  VALID
+  ERROR
+}
+
 model Department {
   id        String   @id @default(cuid())
   name      String
@@ -435,6 +449,41 @@ model CommissionExportRecord {
   fileUrl         String
   exportedBy      String
   exportedAt      DateTime   @default(now())
+}
+
+model ImportBatch {
+  id          String            @id @default(cuid())
+  importType  String
+  fileName    String
+  fileHash    String
+  status      ImportBatchStatus @default(UPLOADED)
+  dryRun      Boolean           @default(true)
+  totalRows   Int               @default(0)
+  validRows   Int               @default(0)
+  errorRows   Int               @default(0)
+  createdBy   String
+  createdAt   DateTime          @default(now())
+  committedBy String?
+  committedAt DateTime?
+  remark      String?
+
+  rows        ImportBatchRow[]
+}
+
+model ImportBatchRow {
+  id             String               @id @default(cuid())
+  batchId        String
+  rowNumber      Int
+  rawJson        String
+  normalizedJson String?
+  status         ImportBatchRowStatus
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime             @default(now())
+
+  batch          ImportBatch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
 }
 
 model CommissionOperationLog {

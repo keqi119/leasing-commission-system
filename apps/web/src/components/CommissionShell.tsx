@@ -26,6 +26,7 @@ export const navItems = [
   { href: "/commission/periods", label: "考核周期", icon: CalendarDays },
   { href: "/commission/targets", label: "收入指标", icon: Target },
   { href: "/commission/rules", label: "提成规则", icon: SlidersHorizontal },
+  { href: "/commission/imports", label: "数据导入", icon: FileSpreadsheet },
   { href: "/commission/orders", label: "订单台账", icon: ReceiptText },
   { href: "/commission/revenue", label: "租金收入", icon: Banknote },
   { href: "/commission/external-profit", label: "外调利润", icon: WalletCards },
@@ -34,6 +35,7 @@ export const navItems = [
   { href: "/commission/vehicle-events", label: "车辆状态", icon: Car },
   { href: "/commission/target-adjustments", label: "指标调整", icon: Scale },
   { href: "/commission/settlements", label: "HR 试算", icon: Gauge },
+  { href: "/commission/trial-run-checks", label: "试运行校验", icon: ListChecks },
   { href: "/commission/approvals", label: "老板审批", icon: ClipboardCheck },
   { href: "/commission/exports", label: "奖金导出", icon: Download }
 ] as const;
@@ -226,4 +228,3 @@ export function ModulePage({ moduleKey }: { moduleKey: ModuleKey }) {
     </>
   );
 }
-
