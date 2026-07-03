@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/server/auth";
-import { createSampleTrialRunWorkflowStore } from "@/server/trial-run-workflow";
+import { createTrialRun, listTrialRuns } from "@/server/trial-run-db-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +10,26 @@ export async function GET(request: Request) {
     return permission.response;
   }
 
-  const store = createSampleTrialRunWorkflowStore();
-  return NextResponse.json({
-    data: {
-      trialRuns: store.trialRuns,
-      issues: store.issues,
-      reports: store.reports,
-      settlementRuns: store.settlementRuns.map((run) => ({
-        id: run.id,
-        runNo: run.runNo,
-        status: run.status,
-        periodCode: run.periodCode,
-        basedOnRunId: run.basedOnRunId,
-        rejectionReason: run.rejectionReason
-      })),
-      exports: store.exports
-    }
+  return NextResponse.json({ data: { trialRuns: await listTrialRuns() } });
+}
+
+export async function POST(request: Request) {
+  const permission = requirePermission(request, "commission:settlement:calculate");
+  if (!permission.ok) {
+    return permission.response;
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    periodId?: string;
+    periodCode?: string;
+    name?: string;
+  };
+  const trialRun = await createTrialRun({
+    periodId: body.periodId,
+    periodCode: body.periodCode,
+    name: body.name ?? `${body.periodCode ?? body.periodId} trial run`,
+    startedBy: permission.actor.userId
   });
+
+  return NextResponse.json({ data: trialRun }, { status: 201 });
 }

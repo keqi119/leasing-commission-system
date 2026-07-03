@@ -10,3 +10,8 @@ packages/database/prisma/dev.db
 packages/database/prisma/dev.db-journal
 apps/web/.next/
 local-data/imports/
+local-data/
+*.real.xlsx
+*.real.csv
+*.sensitive.xlsx
+*.sensitive.csv
