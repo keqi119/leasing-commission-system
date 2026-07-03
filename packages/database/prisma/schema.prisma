@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum CommissionPeriodStatus {
+  DRAFT
+  OPEN
+  FINANCE_LOCKED
+  HR_CALCULATED
+  PENDING_BOSS_APPROVAL
+  BOSS_APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum EmployeeRole {
+  BOSS
+  SALES
+  SALES_MANAGER
+  FINANCE
+  ASSET_MANAGER
+  HR
+  ADMIN
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  SUSPENDED
+  LEFT
+}
+
+enum VehicleSourceType {
+  OWNED
+  EXTERNAL
+}
+
+enum VehicleOwnerType {
+  COMPANY
+  THIRD_PARTY
+  PERSONAL
+}
+
+enum VehicleStatus {
+  ACTIVE
+  REPAIR
+  STOPPED
+  OFFLINE
+}
+
+enum TargetSourceType {
+  MANUAL
+  EMAIL_CONFIRMATION
+  ADJUSTED
+}
+
+enum RuleSetStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum PayoutStage {
+  CURRENT
+  QUARTERLY
+  YEAR_END
+  OTHER
+}
+
+enum BillingMode {
+  MONTHLY
+  DAILY
+  FIXED_TERM
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum FinanceReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RefundStatus {
+  HELD
+  PARTIALLY_REFUNDED
+  REFUNDED
+  DISPUTED
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIALLY_RECEIVED
+  CLEARED
+  OVERDUE
+}
+
+enum VehicleStatusEventType {
+  REPAIR
+  STOPPED
+  OFFLINE
+  ONLINE
+  OTHER
+}
+
+enum TargetAdjustmentReasonType {
+  REPAIR
+  STOPPED
+  OFFLINE
+  ONLINE
+  OTHER
+}
+
+enum TargetAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SettlementRunStatus {
+  DRAFT
+  CALCULATED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXPORTED
+  CLOSED
+}
+
+enum ApprovalTargetType {
+  TARGET_ADJUSTMENT
+  SETTLEMENT_RUN
+  PERIOD
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  LOCK
+  UNLOCK
+  EXPORT
+}
+
+enum ExportType {
+  XLSX
+  CSV
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id                   String           @id @default(cuid())
+  name                 String
+  departmentId         String
+  role                 EmployeeRole
+  loginName            String?          @unique
+  passwordHash         String?
+  isCommissionable     Boolean          @default(true)
+  employmentStatus     EmploymentStatus @default(ACTIVE)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+model Vehicle {
+  id                       String            @id @default(cuid())
+  plateNo                  String            @unique
+  vin                      String?           @unique
+  brand                    String
+  model                    String
+  vehicleSourceType        VehicleSourceType
+  ownerType                VehicleOwnerType
+  status                   VehicleStatus
+  monthlyTargetAmountCents Int
+  remark                   String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+}
+
+model CommissionPeriod {
+  id              String                 @id @default(cuid())
+  periodCode      String
+  departmentId    String
+  startDate       DateTime
+  endDate         DateTime
+  status          CommissionPeriodStatus @default(DRAFT)
+  createdBy       String
+  createdAt       DateTime               @default(now())
+  financeLockedAt DateTime?
+  hrCalculatedAt  DateTime?
+  bossApprovedAt  DateTime?
+  closedAt        DateTime?
+  remark          String?
+
+  @@unique([periodCode, departmentId])
+}
+
+model CommissionTarget {
+  id                 String           @id @default(cuid())
+  periodId           String
+  departmentId       String
+  vehicleId          String?
+  targetAmountCents  Int
+  sourceType         TargetSourceType
+  isIncluded         Boolean          @default(true)
+  remark             String?
+  createdBy          String
+  createdAt          DateTime         @default(now())
+}
+
+model CommissionRuleSet {
+  id            String        @id @default(cuid())
+  name          String
+  departmentId  String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  status        RuleSetStatus @default(DRAFT)
+  createdBy     String
+  createdAt     DateTime      @default(now())
+}
+
+model CommissionTierRule {
+  id                    String @id @default(cuid())
+  ruleSetId             String
+  minAchievementRateBps Int
+  maxAchievementRateBps Int?
+  commissionRateBps     Int
+  sortOrder             Int
+}
+
+model CommissionPayoutRule {
+  id              String      @id @default(cuid())
+  ruleSetId       String
+  payoutStage     PayoutStage
+  payoutRatioBps  Int
+  conditionRemark String?
+  sortOrder       Int
+}
+
+model LeaseOrderLedger {
+  id                         String            @id @default(cuid())
+  orderNo                    String            @unique
+  periodId                   String
+  departmentId               String
+  salesUserId                String
+  customerName               String
+  vehicleId                  String
+  vehicleSourceType          VehicleSourceType
+  billingMode                BillingMode
+  rentalStartDate            DateTime
+  rentalEndDate              DateTime
+  receivableRentAmountCents  Int
+  orderStatus                OrderStatus
+  submittedAt                DateTime?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+}
+
+model RevenueReceiptLedger {
+  id                  String              @id @default(cuid())
+  orderId             String
+  periodId            String
+  salesUserId         String
+  receiptAmountCents  Int
+  receiptDate         DateTime
+  companyAccount      String
+  receiptProofUrl     String?
+  financeReviewStatus FinanceReviewStatus @default(PENDING)
+  isCommissionable    Boolean             @default(false)
+  revenueKind         String              @default("OWNED_RENT")
+  financeReviewedBy   String?
+  financeReviewedAt   DateTime?
+  remark              String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+}
+
+model ExternalProfitReceipt {
+  id                  String              @id @default(cuid())
+  orderId             String
+  periodId            String
+  salesUserId         String
+  profitAmountCents   Int
+  remitDate           DateTime
+  companyAccount      String
+  receiptProofUrl     String?
+  financeReviewStatus FinanceReviewStatus @default(PENDING)
+  isCommissionable    Boolean             @default(false)
+  financeReviewedBy   String?
+  financeReviewedAt   DateTime?
+  remark              String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+}
+
+model DepositLedger {
+  id                 String       @id @default(cuid())
+  orderId            String
+  periodId           String
+  salesUserId        String
+  depositAmountCents Int
+  holderUserId       String
+  receivedDate       DateTime
+  refundAmountCents  Int          @default(0)
+  refundDate         DateTime?
+  refundStatus       RefundStatus @default(HELD)
+  remark             String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model ReceivableSnapshot {
+  id                       String           @id @default(cuid())
+  periodId                 String
+  orderId                  String
+  salesUserId              String
+  receivableAmountCents    Int
+  receivedAmountCents      Int
+  outstandingAmountCents   Int
+  overdueDays              Int
+  status                   ReceivableStatus
+  createdBy                String
+  createdAt                DateTime         @default(now())
+}
+
+model VehicleStatusEvent {
+  id        String                 @id @default(cuid())
+  vehicleId String
+  periodId  String?
+  eventType VehicleStatusEventType
+  startDate DateTime
+  endDate   DateTime?
+  reason    String
+  createdBy String
+  createdAt DateTime               @default(now())
+}
+
+model TargetAdjustmentRequest {
+  id                         String                     @id @default(cuid())
+  periodId                   String
+  vehicleId                  String
+  requestedBy                String
+  reasonType                 TargetAdjustmentReasonType
+  originalTargetAmountCents  Int
+  adjustedTargetAmountCents  Int
+  reason                     String
+  status                     TargetAdjustmentStatus     @default(PENDING)
+  approvedBy                 String?
+  approvedAt                 DateTime?
+  approvalRemark             String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+}
+
+model CommissionSettlementRun {
+  id                                         String              @id @default(cuid())
+  periodId                                   String
+  departmentId                               String
+  runNo                                      String
+  status                                     SettlementRunStatus @default(DRAFT)
+  targetAmountCents                          Int
+  confirmedRevenueAmountCents                Int
+  ownedVehicleRevenueAmountCents             Int
+  externalProfitAmountCents                  Int
+  historicalReceivableRecoveredAmountCents   Int
+  achievementRateBps                         Int
+  appliedCommissionRateBps                   Int
+  departmentCommissionPoolCents              Int
+  calculatedBy                               String
+  calculatedAt                               DateTime
+  submittedBy                                String?
+  submittedAt                                DateTime?
+  approvedBy                                 String?
+  approvedAt                                 DateTime?
+  rejectedBy                                 String?
+  rejectedAt                                 DateTime?
+  rejectionReason                            String?
+  createdAt                                  DateTime            @default(now())
+  updatedAt                                  DateTime            @updatedAt
+
+  @@unique([periodId, departmentId, runNo])
+}
+
+model CommissionSettlementLine {
+  id                                  String   @id @default(cuid())
+  settlementRunId                     String
+  userId                              String
+  roleInSettlement                    String
+  confirmedContributionAmountCents    Int
+  contributionRateBps                 Int
+  grossCommissionCents                Int
+  currentPayoutCents                  Int
+  quarterlyDeferredCents              Int
+  yearEndDeferredCents                Int
+  otherDeferredCents                  Int
+  futurePayoutCents                   Int
+  frozenAmountCents                   Int
+  adjustmentAmountCents               Int
+  finalCurrentPayableCents            Int
+  remark                              String?
+  createdAt                           DateTime @default(now())
+  updatedAt                           DateTime @updatedAt
+}
+
+model CommissionApprovalLog {
+  id           String             @id @default(cuid())
+  targetType   ApprovalTargetType
+  targetId     String
+  action       ApprovalAction
+  operatorId   String
+  operatorRole EmployeeRole
+  comment      String?
+  createdAt    DateTime           @default(now())
+}
+
+model CommissionExportRecord {
+  id              String     @id @default(cuid())
+  settlementRunId String
+  exportType      ExportType
+  fileName        String
+  fileUrl         String
+  exportedBy      String
+  exportedAt      DateTime   @default(now())
+}
+
+model CommissionOperationLog {
+  id           String   @id @default(cuid())
+  operatorId   String
+  operatorRole String
+  action       String
+  resourceType String
+  resourceId   String?
+  beforeJson   String?
+  afterJson    String?
+  createdAt    DateTime @default(now())
+}
+
