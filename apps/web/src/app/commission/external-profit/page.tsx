@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { EntryLedgerPage } from "@/components/EntryLedgerPage";
 
 export default function ExternalProfitPage() {
-  return <ModulePage moduleKey="external-profit" />;
+  return <EntryLedgerPage kind="external-profit" />;
 }
-

@@ -122,6 +122,10 @@ export default function SettlementsPage() {
                 </td>
               </tr>
               <tr>
+                <th>数据来源</th>
+                <td>种子数据 / 导入数据 / 手工录入统一进入计算引擎快照</td>
+              </tr>
+              <tr>
                 <th>审批状态</th>
                 <td>{pageMeta.approvalStatus}</td>
               </tr>
