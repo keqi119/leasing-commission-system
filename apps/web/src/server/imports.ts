@@ -395,6 +395,7 @@ export async function buildTemplateWorkbook(importType: ImportType): Promise<Buf
   worksheet.columns.forEach((column) => {
     column.width = 18;
   });
+  applyTemplateInputTextFormat(worksheet, template);
   applyTemplateDropdowns(worksheet, template);
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
@@ -426,6 +427,14 @@ function applyTemplateDropdowns(worksheet: ExcelJS.Worksheet, template: ImportTe
         errorTitle: "填写范围错误",
         error: `${field}只能选择：${options.map((option) => option.label).join("、")}`
       };
+    }
+  }
+}
+
+function applyTemplateInputTextFormat(worksheet: ExcelJS.Worksheet, template: ImportTemplateDefinition) {
+  for (let rowNumber = 2; rowNumber <= 1000; rowNumber += 1) {
+    for (let columnIndex = 1; columnIndex <= template.columns.length; columnIndex += 1) {
+      worksheet.getCell(rowNumber, columnIndex).numFmt = "@";
     }
   }
 }

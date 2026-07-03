@@ -172,6 +172,22 @@ describe("LCS-P1-H03 import templates and workflow", () => {
     }
   });
 
+  test("formats every xlsx template input cell as text to avoid Excel date coercion", async () => {
+    for (const template of getImportTemplates()) {
+      const workbookBuffer = await buildTemplateWorkbook(template.importType);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(workbookBuffer);
+      const worksheet = workbook.getWorksheet(template.worksheetName);
+      expect(worksheet, template.importType).toBeDefined();
+
+      for (const rowNumber of [2, 1000]) {
+        for (let columnIndex = 1; columnIndex <= template.columns.length; columnIndex += 1) {
+          expect(worksheet!.getCell(rowNumber, columnIndex).numFmt, `${template.importType}.${rowNumber}.${columnIndex}`).toBe("@");
+        }
+      }
+    }
+  });
+
   test("rejects invalid enum values during import preview", () => {
     const cases: Array<{
       importType: Parameters<typeof previewImportRows>[0];
