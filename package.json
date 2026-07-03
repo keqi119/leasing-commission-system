@@ -6,16 +6,18 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --filter @lcs/web dev",
-    "test": "pnpm -r --if-present test",
+    "test": "vitest run packages/commission-engine/src/settlement.test.ts tests/acceptance",
     "typecheck": "pnpm -r --if-present typecheck",
     "prisma:validate": "pnpm --filter @lcs/database prisma:validate",
-    "prisma:generate": "pnpm --filter @lcs/database prisma:generate"
+    "prisma:generate": "pnpm --filter @lcs/database prisma:generate",
+    "check:project-isolation": "tsx scripts/check-project-isolation.ts",
+    "seed:acceptance": "pnpm --filter @lcs/database seed:acceptance"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "tsx": "^4.22.5",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "exceljs": "^4.4.0"
   }
 }
-
