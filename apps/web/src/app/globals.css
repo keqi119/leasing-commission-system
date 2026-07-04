@@ -356,6 +356,94 @@ textarea {
   line-height: 1.6;
 }
 
+.header-actions,
+.form-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.local-role-switcher {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 260px) 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.local-role-switcher span {
+  font-weight: 800;
+}
+
+.local-role-switcher small {
+  color: var(--muted);
+}
+
+.offline-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.offline-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.offline-form input,
+.offline-form select,
+.offline-form textarea,
+.local-role-switcher select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 7px 10px;
+}
+
+.offline-form textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.offline-form .form-actions {
+  grid-column: 1 / -1;
+}
+
+.action-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.action-panel label {
+  display: grid;
+  min-width: 220px;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.action-panel input {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -370,6 +458,8 @@ textarea {
   .metric-grid,
   .module-list,
   .filter-bar,
+  .offline-form,
+  .local-role-switcher,
   .template-grid,
   .two-column {
     grid-template-columns: 1fr;

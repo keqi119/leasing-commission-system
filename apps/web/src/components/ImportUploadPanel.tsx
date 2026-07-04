@@ -25,10 +25,15 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-const localHeaders = {
-  "x-lcs-role": "HR",
-  "x-lcs-user-id": "local-hr"
-};
+function localHeaders(extra: Record<string, string> = {}) {
+  const role = localStorage.getItem("lcs-local-role") ?? "HR";
+  const userId = localStorage.getItem("lcs-local-user-id") ?? `local-${role.toLowerCase()}`;
+  return {
+    ...extra,
+    "x-lcs-role": role,
+    "x-lcs-user-id": userId
+  };
+}
 
 export function ImportUploadPanel({ templates, initialImportType }: ImportUploadPanelProps) {
   const defaultType = initialImportType && templates.some((template) => template.importType === initialImportType)
@@ -65,7 +70,7 @@ export function ImportUploadPanel({ templates, initialImportType }: ImportUpload
     try {
       const response = await fetch("/api/commission/imports/preview", {
         method: "POST",
-        headers: localHeaders,
+        headers: localHeaders(),
         body: formData
       });
       const body = (await response.json()) as ApiResponse<ImportPreviewResult>;
@@ -99,10 +104,7 @@ export function ImportUploadPanel({ templates, initialImportType }: ImportUpload
     try {
       const response = await fetch("/api/commission/imports/commit", {
         method: "POST",
-        headers: {
-          ...localHeaders,
-          "content-type": "application/json"
-        },
+        headers: localHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ batchId: preview.batchId })
       });
       const body = (await response.json()) as ApiResponse<CommitResult>;

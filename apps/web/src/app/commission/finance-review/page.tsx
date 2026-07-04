@@ -1,5 +1,5 @@
 import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
-export default function RevenuePage() {
+export default function FinanceReviewPage() {
   return <OfflineCrudPage resource="revenue" />;
 }

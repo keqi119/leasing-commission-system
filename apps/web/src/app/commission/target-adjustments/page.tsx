@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function TargetAdjustmentsPage() {
-  return <ModulePage moduleKey="target-adjustments" />;
+  return <OfflineCrudPage resource="target-adjustments" />;
 }
-

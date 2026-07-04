@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function PeriodsPage() {
-  return <ModulePage moduleKey="periods" />;
+  return <OfflineCrudPage resource="periods" />;
 }
-

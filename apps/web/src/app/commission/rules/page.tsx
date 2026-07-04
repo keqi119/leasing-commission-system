@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function RulesPage() {
-  return <ModulePage moduleKey="rules" />;
+  return <OfflineCrudPage resource="rules" />;
 }
-

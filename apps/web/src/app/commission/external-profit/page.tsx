@@ -1,5 +1,5 @@
-import { EntryLedgerPage } from "@/components/EntryLedgerPage";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function ExternalProfitPage() {
-  return <EntryLedgerPage kind="external-profit" />;
+  return <OfflineCrudPage resource="external-profit" />;
 }

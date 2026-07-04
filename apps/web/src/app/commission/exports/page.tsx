@@ -1,4 +1,5 @@
 import { statusLabel, yesNo } from "@/server/display-labels";
+import { SettlementActionPanel } from "@/components/SettlementActionPanel";
 import { buildExportGuidance } from "@/server/db-workflow-status";
 import { listExportBindings, listSettlementRuns } from "@/server/trial-run-db-workflow";
 
@@ -26,6 +27,14 @@ export default async function ExportsPage() {
         </div>
         <span className="badge green">{exportableRuns.length} 个已审批批次</span>
       </header>
+
+      <SettlementActionPanel
+        mode="exports"
+        latestRunId={latestApprovedRun?.id}
+        latestRunNo={latestApprovedRun?.runNo}
+        latestRunStatus={latestApprovedRun?.status}
+        defaultPeriodCode={latestApprovedRun?.periodCode ?? latestRun?.periodCode ?? "2026-04"}
+      />
 
       <section className="panel">
         <div className="panel-head">

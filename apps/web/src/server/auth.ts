@@ -16,8 +16,9 @@ export type PermissionResult =
   | { ok: false; response: NextResponse };
 
 export function getActorFromRequest(request: Request): RequestActor | null {
-  const roleHeader = request.headers.get("x-lcs-role");
-  const userId = request.headers.get("x-lcs-user-id") ?? "local-user";
+  const cookies = parseCookieHeader(request.headers.get("cookie") ?? "");
+  const roleHeader = request.headers.get("x-lcs-role") ?? cookies["lcs-local-role"];
+  const userId = request.headers.get("x-lcs-user-id") ?? cookies["lcs-local-user-id"] ?? "local-user";
 
   if (!roleHeader || !employeeRoles.includes(roleHeader as EmployeeRole)) {
     return null;
@@ -27,6 +28,22 @@ export function getActorFromRequest(request: Request): RequestActor | null {
     userId,
     role: roleHeader as EmployeeRole
   };
+}
+
+function parseCookieHeader(cookieHeader: string): Record<string, string> {
+  return Object.fromEntries(
+    cookieHeader
+      .split(";")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const index = item.indexOf("=");
+        if (index === -1) {
+          return [item, ""];
+        }
+        return [item.slice(0, index), decodeURIComponent(item.slice(index + 1))];
+      })
+  );
 }
 
 export function requirePermission(
@@ -57,4 +74,3 @@ export function requirePermission(
 
   return { ok: true, actor };
 }
-

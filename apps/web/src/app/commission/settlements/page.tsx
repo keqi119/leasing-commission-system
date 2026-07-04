@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SettlementActionPanel } from "@/components/SettlementActionPanel";
 import { statusLabel, yesNo } from "@/server/display-labels";
 import { formatBps, formatCny } from "@/server/sample";
 import { buildTrialRunCheckReportFromDb, listAdjustments, listSettlementRuns } from "@/server/trial-run-db-workflow";
@@ -32,6 +33,14 @@ export default async function SettlementsPage() {
           {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} 条调整待处理` : "可进入审批"}
         </span>
       </header>
+
+      <SettlementActionPanel
+        mode="settlements"
+        latestRunId={latestRun?.id}
+        latestRunNo={latestRun?.runNo}
+        latestRunStatus={latestRun?.status}
+        defaultPeriodCode={latestRun?.periodCode ?? checkReport?.periodCode ?? "2026-04"}
+      />
 
       <section className="metric-grid">
         <div className="metric">

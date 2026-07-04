@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function VehicleEventsPage() {
-  return <ModulePage moduleKey="vehicle-events" />;
+  return <OfflineCrudPage resource="vehicle-events" />;
 }
-
