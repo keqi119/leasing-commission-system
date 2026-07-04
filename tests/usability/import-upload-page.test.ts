@@ -33,6 +33,12 @@ describe("commission ledger entry and import UX", () => {
     expect(crudPanel).toContain('className="drawer-form offline-form"');
   });
 
+  test("sends the validated preview payload when committing an import", () => {
+    const uploadComponent = readSource("apps/web/src/components/ImportUploadPanel.tsx");
+
+    expect(uploadComponent).toContain("JSON.stringify({ batchId: preview.batchId, preview })");
+  });
+
   test("refreshes the current ledger list after an embedded import is committed", () => {
     const crudPanel = readSource("apps/web/src/components/OfflineCrudPanel.tsx");
     const uploadComponent = readSource("apps/web/src/components/ImportUploadPanel.tsx");

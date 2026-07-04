@@ -116,7 +116,7 @@ export function ImportUploadPanel({
       const response = await fetch("/api/commission/imports/commit", {
         method: "POST",
         headers: localHeaders({ "content-type": "application/json" }),
-        body: JSON.stringify({ batchId: preview.batchId })
+        body: JSON.stringify({ batchId: preview.batchId, preview })
       });
       const body = (await response.json()) as ApiResponse<CommitResult>;
       if (!response.ok || !body.data) {
