@@ -66,7 +66,7 @@ export function EntryLedgerPage({ kind }: { kind: LedgerKind }) {
           <h1 className="page-title">{config.title}</h1>
           <p className="page-subtitle">{config.subtitle}</p>
         </div>
-        <Link className="button-link" href="/commission/imports">
+        <Link className="button-link" href={`/commission/imports?type=${kind}`}>
           导入数据
         </Link>
       </header>

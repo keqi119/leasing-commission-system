@@ -59,6 +59,7 @@ const moduleContent = {
     subtitle: "老板确认本期收入目标，审批后的指标调整才改变目标。",
     owner: "老板",
     permission: "commission:target:manage",
+    importType: "targets",
     columns: ["考核周期", "部门 / 车辆", "指标金额", "来源类型", "备注"],
     rows: [
       ["2026-04", "租赁销售部", "519,000.00", "手工确认", "老板确认目标"],
@@ -135,6 +136,7 @@ const moduleContent = {
     subtitle: "停运、维修、下线、上线只形成流水，不自动调整指标。",
     owner: "资管",
     permission: "commission:target-adjustment:request",
+    importType: "vehicle-events",
     columns: ["车牌号", "事件类型", "发生日期", "指标调整处理"],
     rows: [
       ["沪A-1001", "REPAIR", "2026-04-08", "已提交指标调整"],
@@ -210,7 +212,13 @@ export function ModulePage({ moduleKey }: { moduleKey: ModuleKey }) {
           <h1 className="page-title">{module.title}</h1>
           <p className="page-subtitle">{module.subtitle}</p>
         </div>
-        <span className="badge blue">{module.owner}</span>
+        {"importType" in module ? (
+          <Link className="button-link" href={`/commission/imports?type=${module.importType}`}>
+            导入数据
+          </Link>
+        ) : (
+          <span className="badge blue">{module.owner}</span>
+        )}
       </header>
       <section className="panel">
         <div className="panel-head">
