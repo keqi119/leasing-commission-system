@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { generateTrialRunReport } from "@/server/trial-run-db-workflow";
 
@@ -20,12 +21,16 @@ export async function POST(request: Request, context: RouteContext) {
     result?: "PASS" | "PASS_WITH_LIMITATIONS" | "FAIL";
     residualRiskSummary?: string;
   };
-  const report = await generateTrialRunReport(id, {
-    gitCommit: body.gitCommit ?? "local",
-    acceptedBy: permission.actor.userId,
-    result: body.result,
-    residualRiskSummary: body.residualRiskSummary
-  });
+  try {
+    const report = await generateTrialRunReport(id, {
+      gitCommit: body.gitCommit ?? "local",
+      acceptedBy: permission.actor.userId,
+      result: body.result,
+      residualRiskSummary: body.residualRiskSummary
+    });
 
-  return NextResponse.json({ data: report }, { status: 201 });
+    return NextResponse.json({ data: report }, { status: 201 });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

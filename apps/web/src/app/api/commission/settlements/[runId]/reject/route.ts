@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { rejectSettlementRun } from "@/server/trial-run-db-workflow";
 
@@ -16,10 +17,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { runId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { reason?: string };
-  return NextResponse.json({
-    data: await rejectSettlementRun(runId, {
-      rejectedBy: permission.actor.userId,
-      reason: body.reason ?? ""
-    })
-  });
+  try {
+    return NextResponse.json({
+      data: await rejectSettlementRun(runId, {
+        rejectedBy: permission.actor.userId,
+        reason: body.reason ?? ""
+      })
+    });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

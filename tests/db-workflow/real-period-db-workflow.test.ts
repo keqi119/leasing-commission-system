@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { getSqliteClient } from "@lcs/database";
 import { seedAcceptance } from "../../packages/database/prisma/seed.acceptance";
+import { DbWorkflowError } from "../../apps/web/src/server/db-workflow-errors";
 import {
   approveCommissionAdjustment,
   approvePeriodReopenRequest,
@@ -42,8 +43,27 @@ describe("LCS-P1-H05 real-period persisted workflow", () => {
       departmentTargetCents: 45000000,
       commissionableRevenueCents: 45000000,
       achievementRateBps: 10000,
-      estimatedCommissionPoolCents: 4500000
+      estimatedCommissionPoolCents: 4500000,
+      importBatchCount: 8,
+      employeeCount: 7,
+      vehicleCount: 3,
+      orderCount: 4,
+      revenueReceiptCount: 4,
+      externalProfitReceiptCount: 1,
+      depositCount: 2,
+      vehicleStatusEventCount: 1,
+      unapprovedRevenueCents: 3200000,
+      externalProfitTotalCents: 8000000,
+      pendingTargetAdjustmentCount: 1,
+      approvedTargetAdjustmentCount: 0
     });
+    expect(check?.issueSuggestions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: "BLOCKER", category: "REVENUE", ownerRole: "FINANCE" }),
+        expect.objectContaining({ severity: "MAJOR", category: "DEPOSIT", ownerRole: "SALES" }),
+        expect.objectContaining({ severity: "MAJOR", category: "TARGET", ownerRole: "ASSET_MANAGER" })
+      ])
+    );
 
     const trialRun = await createTrialRun({
       periodCode: "2026-05",
@@ -96,7 +116,10 @@ describe("LCS-P1-H05 real-period persisted workflow", () => {
     });
     const runV1 = await recalculateSettlementRun({ periodCode: "2026-05", calculatedBy: "real-hr" });
 
-    await expect(submitSettlementRun(runV1.id, { submittedBy: "real-hr" })).rejects.toThrow(/BLOCKER/);
+    await expect(submitSettlementRun(runV1.id, { submittedBy: "real-hr" })).rejects.toMatchObject({
+      code: "OPEN_BLOCKER_ISSUES",
+      context: { blockerCount: 1 }
+    } satisfies Partial<DbWorkflowError>);
     await resolveTrialRunIssue(blocker.id, { resolvedBy: "real-hr", resolution: "Blocker resolved." });
 
     const pendingAdjustment = await createCommissionAdjustment({
@@ -108,13 +131,19 @@ describe("LCS-P1-H05 real-period persisted workflow", () => {
       reason: "Trial run special reward",
       requestedBy: "real-hr"
     });
-    await expect(submitSettlementRun(runV1.id, { submittedBy: "real-hr" })).rejects.toThrow(/Pending manual adjustments/);
+    await expect(submitSettlementRun(runV1.id, { submittedBy: "real-hr" })).rejects.toMatchObject({
+      code: "PENDING_MANUAL_ADJUSTMENTS",
+      context: { pendingAdjustmentCount: 1 }
+    } satisfies Partial<DbWorkflowError>);
     await submitSettlementRun(runV1.id, { submittedBy: "real-hr", excludePendingAdjustments: true });
     await rejectSettlementRun(runV1.id, {
       rejectedBy: "real-boss",
       reason: "Include approved manual adjustment in a new run."
     });
-    await expect(exportApprovedSettlementRun(runV1.id, { exportedBy: "real-hr" })).rejects.toThrow(/approved/);
+    await expect(exportApprovedSettlementRun(runV1.id, { exportedBy: "real-hr" })).rejects.toMatchObject({
+      code: "SETTLEMENT_RUN_NOT_EXPORTABLE",
+      context: { runNo: runV1.runNo }
+    } satisfies Partial<DbWorkflowError>);
 
     const revenueBefore = await sumRevenueForRealPeriod();
     await submitCommissionAdjustment(pendingAdjustment.id, { submittedBy: "real-hr" });

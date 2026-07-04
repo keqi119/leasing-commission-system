@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { approvePeriodReopenRequest } from "@/server/trial-run-db-workflow";
 
@@ -15,5 +16,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { requestId } = await context.params;
-  return NextResponse.json({ data: await approvePeriodReopenRequest(requestId, { approvedBy: permission.actor.userId }) });
+  try {
+    return NextResponse.json({ data: await approvePeriodReopenRequest(requestId, { approvedBy: permission.actor.userId }) });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

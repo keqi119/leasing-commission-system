@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { getSettlementRun, recalculateSettlementRun } from "@/server/trial-run-db-workflow";
 
@@ -15,12 +16,16 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { runId } = await context.params;
-  const previous = await getSettlementRun(runId);
-  return NextResponse.json({
-    data: await recalculateSettlementRun({
-      periodCode: previous.periodCode,
-      calculatedBy: permission.actor.userId,
-      basedOnRunId: runId
-    })
-  });
+  try {
+    const previous = await getSettlementRun(runId);
+    return NextResponse.json({
+      data: await recalculateSettlementRun({
+        periodCode: previous.periodCode,
+        calculatedBy: permission.actor.userId,
+        basedOnRunId: runId
+      })
+    });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

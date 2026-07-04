@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listSettlementRuns } from "@/server/trial-run-db-workflow";
+import { buildExportGuidance } from "@/server/db-workflow-status";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,8 @@ export default async function ApprovalsPage() {
   const runs = await listSettlementRuns();
   const pendingRuns = runs.filter((run) => run.status === "SUBMITTED");
   const latestApproved = runs.find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
+  const currentRun = pendingRuns[0] ?? runs[0];
+  const exportGuidance = buildExportGuidance({ runNo: latestApproved?.runNo ?? currentRun?.runNo, status: latestApproved?.status ?? currentRun?.status });
 
   return (
     <>
@@ -21,6 +24,36 @@ export default async function ApprovalsPage() {
           {pendingRuns.length > 0 ? `${pendingRuns.length} pending` : `official ${latestApproved?.runNo ?? "-"}`}
         </span>
       </header>
+
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Current Status / Next Step</h2>
+          <span className={pendingRuns.length > 0 ? "badge amber" : exportGuidance.canExport ? "badge green" : "badge blue"}>
+            {pendingRuns.length > 0 ? "boss review" : exportGuidance.canExport ? "approved" : "waiting submit"}
+          </span>
+        </div>
+        <div className="panel-body">
+          <table className="data-table">
+            <tbody>
+              <tr><th>Current period</th><td>{currentRun?.periodCode ?? "-"}</td></tr>
+              <tr><th>Current Trial Run</th><td>Review linked issue and report from Trial Runs</td></tr>
+              <tr><th>Current Settlement Run</th><td>{currentRun?.runNo ?? "-"}</td></tr>
+              <tr><th>Current status</th><td>{currentRun?.status ?? "No run"}</td></tr>
+              <tr><th>Can submit approval</th><td>{pendingRuns.length > 0 ? "Already submitted" : "HR submits from settlement workflow"}</td></tr>
+              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
+              <tr><th>Next role</th><td>{pendingRuns.length > 0 ? "老板" : exportGuidance.nextRole}</td></tr>
+              <tr>
+                <th>Next action</th>
+                <td>
+                  {pendingRuns.length > 0
+                    ? `老板审批或驳回结算批次 ${pendingRuns[0].runNo}；驳回必须填写原因。`
+                    : exportGuidance.message}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel-head">

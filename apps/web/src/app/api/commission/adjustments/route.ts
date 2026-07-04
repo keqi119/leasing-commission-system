@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { createCommissionAdjustment, listAdjustments } from "@/server/trial-run-db-workflow";
 
@@ -30,18 +31,22 @@ export async function POST(request: Request) {
     evidenceUrl?: string;
     settlementRunId?: string;
   };
-  const adjustment = await createCommissionAdjustment({
-    periodId: body.periodId,
-    periodCode: body.periodCode,
-    userId: body.userId ?? "",
-    adjustmentType: body.adjustmentType ?? "OTHER",
-    amountCents: body.amountCents ?? 0,
-    direction: body.direction ?? "ADD",
-    reason: body.reason ?? "",
-    evidenceUrl: body.evidenceUrl,
-    settlementRunId: body.settlementRunId,
-    requestedBy: permission.actor.userId
-  });
+  try {
+    const adjustment = await createCommissionAdjustment({
+      periodId: body.periodId,
+      periodCode: body.periodCode,
+      userId: body.userId ?? "",
+      adjustmentType: body.adjustmentType ?? "OTHER",
+      amountCents: body.amountCents ?? 0,
+      direction: body.direction ?? "ADD",
+      reason: body.reason ?? "",
+      evidenceUrl: body.evidenceUrl,
+      settlementRunId: body.settlementRunId,
+      requestedBy: permission.actor.userId
+    });
 
-  return NextResponse.json({ data: adjustment }, { status: 201 });
+    return NextResponse.json({ data: adjustment }, { status: 201 });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }
