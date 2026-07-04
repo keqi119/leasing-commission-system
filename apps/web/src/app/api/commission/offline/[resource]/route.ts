@@ -8,6 +8,8 @@ import {
   type OfflineResource
 } from "@/server/offline-v1-db";
 
+export const dynamic = "force-dynamic";
+
 const resources = new Set<OfflineResource>([
   "employees",
   "vehicles",

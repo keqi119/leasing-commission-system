@@ -21,6 +21,7 @@ interface ImportUploadPanelProps {
   lockedImportType?: ImportType;
   showTemplateDownloads?: boolean;
   embedded?: boolean;
+  onCommitted?: () => Promise<void> | void;
 }
 
 interface ApiResponse<T> {
@@ -43,7 +44,8 @@ export function ImportUploadPanel({
   initialImportType,
   lockedImportType,
   showTemplateDownloads = false,
-  embedded = false
+  embedded = false,
+  onCommitted
 }: ImportUploadPanelProps) {
   const defaultType = lockedImportType ?? (initialImportType && templates.some((template) => template.importType === initialImportType)
     ? initialImportType
@@ -114,7 +116,7 @@ export function ImportUploadPanel({
       const response = await fetch("/api/commission/imports/commit", {
         method: "POST",
         headers: localHeaders({ "content-type": "application/json" }),
-        body: JSON.stringify({ batchId: preview.batchId })
+        body: JSON.stringify({ batchId: preview.batchId, preview })
       });
       const body = (await response.json()) as ApiResponse<CommitResult>;
       if (!response.ok || !body.data) {
@@ -122,6 +124,7 @@ export function ImportUploadPanel({
         return;
       }
       setCommitResult(body.data);
+      await onCommitted?.();
       setMessage(`提交成功：写入 ${body.data.writtenRows} 行，影响账期 ${body.data.affectedPeriods.join("、") || "-"}。`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "提交入库失败。");
