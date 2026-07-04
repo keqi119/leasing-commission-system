@@ -1,5 +1,5 @@
 ﻿import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   acceptanceApprovalMeta,
@@ -27,9 +27,17 @@ const ids = {
 } as const;
 
 const seedDir = dirname(fileURLToPath(import.meta.url));
-const databasePath = join(seedDir, "dev.db");
+const databasePath = resolveSeedDatabasePath();
 const date = (value: string) => `${value}T00:00:00.000Z`;
 const now = "2026-05-06T09:00:00.000Z";
+
+function resolveSeedDatabasePath(): string {
+  const configuredPath = process.env.LCS_DATABASE_PATH;
+  if (configuredPath) {
+    return isAbsolute(configuredPath) ? configuredPath : join(process.cwd(), configuredPath);
+  }
+  return join(seedDir, "dev.db");
+}
 
 export function buildAcceptanceSeedPlan() {
   const settlement = calculateCommissionSettlement(acceptanceScenarioInput);

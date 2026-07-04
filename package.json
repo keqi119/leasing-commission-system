@@ -6,12 +6,14 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --filter @lcs/web dev",
-    "test": "vitest run packages/commission-engine/src/settlement.test.ts tests/acceptance tests/imports tests/trial-run tests/approval-loop tests/adjustments tests/trial-runs tests/real-period tests/db-workflow tests/usability tests/real-trial-run",
+    "test": "vitest run packages/commission-engine/src/settlement.test.ts tests/acceptance tests/imports tests/trial-run tests/approval-loop tests/adjustments tests/trial-runs tests/real-period tests/db-workflow tests/usability tests/real-trial-run tests/health tests/local-trial",
     "typecheck": "pnpm -r --if-present typecheck",
     "prisma:validate": "pnpm --filter @lcs/database prisma:validate",
     "prisma:generate": "pnpm --filter @lcs/database prisma:generate",
     "check:project-isolation": "tsx scripts/check-project-isolation.ts",
-    "seed:acceptance": "pnpm --filter @lcs/database seed:acceptance"
+    "seed:acceptance": "pnpm --filter @lcs/database seed:acceptance",
+    "seed:real-period": "tsx scripts/seed-real-period-fixture.ts",
+    "package:local": "tsx scripts/create-local-trial-package.ts"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

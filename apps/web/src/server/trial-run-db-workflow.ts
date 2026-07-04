@@ -1090,19 +1090,20 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
 
   await cleanupRealPeriodFixture(client, periodId, departmentId);
   await client.$executeRawUnsafe(
-    `INSERT INTO Department (id, name, createdAt, updatedAt) VALUES (?, '鐩磋惀閮?, ?, ?)`,
+    `INSERT INTO Department (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)`,
     departmentId,
+    "Direct Leasing",
     now,
     now
   );
   for (const employee of [
-    [ids.boss, "鑰佹澘", "BOSS"],
+    [ids.boss, "Boss", "BOSS"],
     [ids.hr, "HR", "HR"],
-    [ids.finance, "璐㈠姟", "FINANCE"],
-    [ids.asset, "璧勭", "ASSET_MANAGER"],
-    [ids.salesA, "閿€鍞?A", "SALES"],
-    [ids.salesB, "閿€鍞?B", "SALES"],
-    [ids.salesC, "閿€鍞?C", "SALES"]
+    [ids.finance, "Finance", "FINANCE"],
+    [ids.asset, "Asset Manager", "ASSET_MANAGER"],
+    [ids.salesA, "Sales A", "SALES"],
+    [ids.salesB, "Sales B", "SALES"],
+    [ids.salesC, "Sales C", "SALES"]
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO Employee (id, name, departmentId, role, loginName, passwordHash, isCommissionable, employmentStatus, createdAt, updatedAt)
@@ -1118,13 +1119,13 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
     );
   }
   for (const vehicle of [
-    [ids.vehicleA, "绮****1", "LCSREALVINA", "OWNED", 22000000],
-    [ids.vehicleB, "绮****2", "LCSREALVINB", "OWNED", 18000000],
-    [ids.vehicleC, "绮****3", "LCSREALVINC", "EXTERNAL", 0]
+    [ids.vehicleA, "TEST-PLATE-1", "LCSREALVINA", "OWNED", 22000000],
+    [ids.vehicleB, "TEST-PLATE-2", "LCSREALVINB", "OWNED", 18000000],
+    [ids.vehicleC, "TEST-PLATE-3", "LCSREALVINC", "EXTERNAL", 0]
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO Vehicle (id, plateNo, vin, brand, model, vehicleSourceType, ownerType, status, monthlyTargetAmountCents, remark, createdAt, updatedAt)
-       VALUES (?, ?, ?, '璇曡繍琛?, '鑴辨晱杞﹁締', ?, ?, 'ACTIVE', ?, 'H05 real-period fixture', ?, ?)`,
+       VALUES (?, ?, ?, 'Trial Brand', 'Sanitized Model', ?, ?, 'ACTIVE', ?, 'H05 real-period fixture', ?, ?)`,
       vehicle[0],
       vehicle[1],
       vehicle[2],
@@ -1206,7 +1207,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
       periodId,
       departmentId,
       order[2],
-      `瀹㈡埛${order[1].slice(-1)}`,
+      `Customer ${order[1].slice(-1)}`,
       order[3],
       order[4],
       order[5],
@@ -1223,7 +1224,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO RevenueReceiptLedger (id, orderId, periodId, salesUserId, receiptAmountCents, receiptDate, companyAccount, receiptProofUrl, financeReviewStatus, isCommissionable, revenueKind, financeReviewedBy, financeReviewedAt, remark, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, '2026-05-21T00:00:00.000Z', '鍏徃璇曡繍琛岃处鎴?, 'https://mock.local/proof', ?, 1, ?, ?, ?, 'H05 real-period fixture', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, '2026-05-21T00:00:00.000Z', 'local trial company account', 'https://mock.local/proof', ?, 1, ?, ?, ?, 'H05 real-period fixture', ?, ?)`,
       receipt[0],
       receipt[1],
       periodId,
@@ -1239,7 +1240,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
   }
   await client.$executeRawUnsafe(
     `INSERT INTO ExternalProfitReceipt (id, orderId, periodId, salesUserId, profitAmountCents, remitDate, companyAccount, receiptProofUrl, financeReviewStatus, isCommissionable, financeReviewedBy, financeReviewedAt, remark, createdAt, updatedAt)
-     VALUES ('real-external-profit-c', 'real-order-c', ?, ?, 8000000, '2026-05-22T00:00:00.000Z', '鍏徃璇曡繍琛岃处鎴?, 'https://mock.local/external-profit', 'APPROVED', 1, ?, '2026-06-02T00:00:00.000Z', 'Only remitted profit is recorded', ?, ?)`,
+     VALUES ('real-external-profit-c', 'real-order-c', ?, ?, 8000000, '2026-05-22T00:00:00.000Z', 'local trial company account', 'https://mock.local/external-profit', 'APPROVED', 1, ?, '2026-06-02T00:00:00.000Z', 'Only remitted profit is recorded', ?, ?)`,
     periodId,
     ids.salesC,
     ids.finance,
