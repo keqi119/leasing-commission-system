@@ -91,7 +91,7 @@ H08 起，以下页面提供真实写库或真实流程动作：
 - `/commission/deposits`：押金台账
 - `/commission/vehicle-events`：车辆状态流水
 - `/commission/target-adjustments`：指标调整申请
-- `/commission/imports`：Excel / CSV 导入中心
+- 各业务台账页面底部：Excel / CSV 导入、模板下载和填写帮助
 - `/commission/finance-review`：财务审核入口
 - `/commission/settlements`：HR 真实试算和提交审批
 - `/commission/approvals`：老板审批或驳回

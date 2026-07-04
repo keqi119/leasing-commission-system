@@ -1,9 +1,11 @@
 import { OfflineCrudPanel } from "./OfflineCrudPanel";
 import { getOfflineCrudConfig } from "./offline-crud-config";
+import { getImportTemplates } from "@/server/imports";
 import { listOfflineRecords, type OfflineResource } from "@/server/offline-v1-db";
 
 export async function OfflineCrudPage({ resource }: { resource: OfflineResource }) {
   const config = getOfflineCrudConfig(resource);
+  const importTemplates = getImportTemplates();
   const [rowsResult, employees, vehicles, periods, orders] = await Promise.all([
     safeList(resource),
     safeList("employees"),
@@ -22,6 +24,7 @@ export async function OfflineCrudPage({ resource }: { resource: OfflineResource 
         periods: periods.rows,
         orders: orders.rows
       }}
+      importTemplates={importTemplates}
       initialError={rowsResult.error}
     />
   );

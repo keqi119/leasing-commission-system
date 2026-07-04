@@ -18,6 +18,9 @@ type CommitResult = {
 interface ImportUploadPanelProps {
   templates: ImportTemplateDefinition[];
   initialImportType?: ImportType;
+  lockedImportType?: ImportType;
+  showTemplateDownloads?: boolean;
+  embedded?: boolean;
 }
 
 interface ApiResponse<T> {
@@ -35,10 +38,16 @@ function localHeaders(extra: Record<string, string> = {}) {
   };
 }
 
-export function ImportUploadPanel({ templates, initialImportType }: ImportUploadPanelProps) {
-  const defaultType = initialImportType && templates.some((template) => template.importType === initialImportType)
+export function ImportUploadPanel({
+  templates,
+  initialImportType,
+  lockedImportType,
+  showTemplateDownloads = false,
+  embedded = false
+}: ImportUploadPanelProps) {
+  const defaultType = lockedImportType ?? (initialImportType && templates.some((template) => template.importType === initialImportType)
     ? initialImportType
-    : templates[0]?.importType;
+    : templates[0]?.importType);
   const [importType, setImportType] = useState<ImportType>(defaultType ?? "orders");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
@@ -124,30 +133,34 @@ export function ImportUploadPanel({ templates, initialImportType }: ImportUpload
   const errorRows = preview?.rows.filter((row) => row.status === "ERROR").slice(0, 20) ?? [];
 
   return (
-    <section className="panel">
+    <section className={embedded ? "panel embedded-import-panel" : "panel"}>
       <div className="panel-head">
-        <h2>上传预览与提交入库</h2>
+        <h2>{embedded ? "导入本板块数据" : "上传预览与提交入库"}</h2>
         <span className="badge green">真实文件导入</span>
       </div>
       <div className="panel-body">
         <div className="filter-bar">
           <label>
             导入类型
-            <select
-              value={importType}
-              onChange={(event) => {
-                setImportType(event.target.value as ImportType);
-                setPreview(null);
-                setCommitResult(null);
-                setMessage("");
-              }}
-            >
-              {templates.map((template) => (
-                <option key={template.importType} value={template.importType}>
-                  {template.label}
-                </option>
-              ))}
-            </select>
+            {lockedImportType ? (
+              <input readOnly value={selectedTemplate?.label ?? lockedImportType} />
+            ) : (
+              <select
+                value={importType}
+                onChange={(event) => {
+                  setImportType(event.target.value as ImportType);
+                  setPreview(null);
+                  setCommitResult(null);
+                  setMessage("");
+                }}
+              >
+                {templates.map((template) => (
+                  <option key={template.importType} value={template.importType}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
           <label>
             选择文件
@@ -179,6 +192,26 @@ export function ImportUploadPanel({ templates, initialImportType }: ImportUpload
           <p className="muted-text">
             当前模板：{selectedTemplate.label}。请使用下方下载的标准模板填写后上传，系统会先预览校验，预览存在错误时不会写入正式台账。
           </p>
+        ) : null}
+
+        {selectedTemplate && showTemplateDownloads ? (
+          <div className="template-actions">
+            <a className="button-link" href={`/api/commission/imports/templates?type=${selectedTemplate.importType}&format=xlsx`}>
+              下载 xlsx 模板
+            </a>
+            <a className="button-link secondary" href={`/api/commission/imports/templates?type=${selectedTemplate.importType}&format=csv`}>
+              下载 csv 模板
+            </a>
+            <span className="badge blue">请保持中文表头不变</span>
+          </div>
+        ) : null}
+
+        {selectedTemplate && showTemplateDownloads ? (
+          <div className="column-list">
+            {selectedTemplate.columns.map((column) => (
+              <span key={column}>{column}</span>
+            ))}
+          </div>
         ) : null}
 
         {message ? <p className="empty-state">{message}</p> : null}
