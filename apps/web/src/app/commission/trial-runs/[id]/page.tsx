@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  adjustmentDirectionLabel,
+  adjustmentTypeLabel,
+  issueSeverityLabel,
+  issueStatusLabel,
+  roleLabel,
+  statusLabel,
+  trialRunResultLabel,
+  yesNo
+} from "@/server/display-labels";
+import { buildExportGuidance, buildSettlementSubmissionGuidance, summarizeIssueState } from "@/server/db-workflow-status";
 import { formatBps, formatCny } from "@/server/sample";
 import { getTrialRun } from "@/server/trial-run-db-workflow";
-import { buildExportGuidance, buildSettlementSubmissionGuidance, summarizeIssueState } from "@/server/db-workflow-status";
 
 export const dynamic = "force-dynamic";
 
@@ -36,52 +46,52 @@ export default async function TrialRunDetailPage({ params }: PageProps) {
         <div>
           <h1 className="page-title">{detail.trialRun.name}</h1>
           <p className="page-subtitle">
-            Period {detail.trialRun.periodCode} / {detail.departmentName} / {detail.periodStatus}
+            账期 {detail.trialRun.periodCode} / {detail.departmentName} / {detail.periodStatus}
           </p>
         </div>
         <span className={blockerCount > 0 ? "badge red" : "badge green"}>
-          {blockerCount > 0 ? `${blockerCount} blocker` : "Can proceed"}
+          {blockerCount > 0 ? `${blockerCount} 个阻塞问题` : "可继续推进"}
         </span>
       </header>
 
       <section className="metric-grid">
         <div className="metric">
-          <span>Current runNo</span>
+          <span>当前结算批次</span>
           <strong>{latestRun?.runNo ?? "-"}</strong>
         </div>
         <div className="metric">
-          <span>Approved runNo</span>
+          <span>已审批批次</span>
           <strong>{approvedRun?.runNo ?? "-"}</strong>
         </div>
         <div className="metric">
-          <span>Department revenue</span>
+          <span>部门实收</span>
           <strong>{approvedRun ? formatCny(approvedRun.snapshot.confirmedRevenueAmountCents) : "-"}</strong>
         </div>
         <div className="metric">
-          <span>Achievement</span>
+          <span>达成率</span>
           <strong>{approvedRun ? formatBps(approvedRun.snapshot.achievementRateBps) : "-"}</strong>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Current Status / Next Step</h2>
+          <h2>当前状态与下一步</h2>
           <span className={`badge ${submissionGuidance.canSubmit || exportGuidance.canExport ? "green" : "amber"}`}>
-            {exportGuidance.canExport ? "export ready" : submissionGuidance.canSubmit ? "submit ready" : "needs action"}
+            {exportGuidance.canExport ? "可导出" : submissionGuidance.canSubmit ? "可提交审批" : "需要处理"}
           </span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
-              <tr><th>Current period</th><td>{detail.trialRun.periodCode} / {detail.periodStatus}</td></tr>
-              <tr><th>Current Trial Run</th><td>{detail.trialRun.name} / {detail.trialRun.status}</td></tr>
-              <tr><th>Current Settlement Run</th><td>{latestRun?.runNo ?? "-"}</td></tr>
-              <tr><th>BLOCKER / MAJOR issues</th><td>{issueState.blockerCount} / {issueState.majorCount}</td></tr>
-              <tr><th>Pending adjustments</th><td>{pendingAdjustmentCount}</td></tr>
-              <tr><th>Can submit approval</th><td>{submissionGuidance.canSubmit ? "Yes" : "No"}</td></tr>
-              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
-              <tr><th>Next role</th><td>{exportGuidance.canExport ? exportGuidance.nextRole : submissionGuidance.nextRole}</td></tr>
-              <tr><th>Next action</th><td>{exportGuidance.canExport ? exportGuidance.message : submissionGuidance.message}</td></tr>
+              <tr><th>当前账期</th><td>{detail.trialRun.periodCode} / {detail.periodStatus}</td></tr>
+              <tr><th>当前试运行</th><td>{detail.trialRun.name} / {statusLabel(detail.trialRun.status, "trialRun")}</td></tr>
+              <tr><th>当前结算批次</th><td>{latestRun?.runNo ?? "-"}</td></tr>
+              <tr><th>阻塞 / 重大问题</th><td>{issueState.blockerCount} / {issueState.majorCount}</td></tr>
+              <tr><th>待审批人工调整</th><td>{pendingAdjustmentCount}</td></tr>
+              <tr><th>是否可提交审批</th><td>{yesNo(submissionGuidance.canSubmit)}</td></tr>
+              <tr><th>是否可导出</th><td>{yesNo(exportGuidance.canExport)}</td></tr>
+              <tr><th>下一步角色</th><td>{exportGuidance.canExport ? exportGuidance.nextRole : submissionGuidance.nextRole}</td></tr>
+              <tr><th>下一步操作</th><td>{exportGuidance.canExport ? exportGuidance.message : submissionGuidance.message}</td></tr>
             </tbody>
           </table>
         </div>
@@ -90,23 +100,23 @@ export default async function TrialRunDetailPage({ params }: PageProps) {
       <section className="two-column">
         <div className="panel">
           <div className="panel-head">
-            <h2>Settlement Versions</h2>
-            <span className="badge blue">No overwrite</span>
+            <h2>结算批次版本</h2>
+            <span className="badge blue">不覆盖历史</span>
           </div>
           <div className="panel-body">
             {detail.settlementRuns.length === 0 ? (
-              <p className="empty-state">No settlement run has been calculated for this period.</p>
+              <p className="empty-state">该账期还没有生成结算批次。</p>
             ) : (
               <table className="data-table">
                 <tbody>
                   {detail.settlementRuns.map((run) => (
                     <tr key={run.id}>
                       <th>{run.runNo}</th>
-                      <td>{run.status}</td>
-                      <td>{run.rejectionReason ?? "retained"}</td>
+                      <td>{statusLabel(run.status)}</td>
+                      <td>{run.rejectionReason ?? "已保留"}</td>
                       <td>
                         <Link className="button-link secondary" href={`/commission/settlements/${run.id}/diff`}>
-                          Diff
+                          查看差异
                         </Link>
                       </td>
                     </tr>
@@ -119,21 +129,21 @@ export default async function TrialRunDetailPage({ params }: PageProps) {
 
         <div className="panel">
           <div className="panel-head">
-            <h2>Issues</h2>
+            <h2>问题列表</h2>
             <span className="badge amber">{detail.issues.length}</span>
           </div>
           <div className="panel-body">
             {detail.issues.length === 0 ? (
-              <p className="empty-state">No issue has been recorded.</p>
+              <p className="empty-state">暂无试运行问题记录。</p>
             ) : (
               <table className="data-table">
                 <tbody>
                   {detail.issues.map((issue) => (
                     <tr key={issue.id}>
                       <th>{issue.title}</th>
-                      <td>{issue.severity}</td>
-                      <td>{issue.ownerRole}</td>
-                      <td>{issue.status}</td>
+                      <td>{issueSeverityLabel(issue.severity)}</td>
+                      <td>{roleLabel(issue.ownerRole)}</td>
+                      <td>{issueStatusLabel(issue.status)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -145,35 +155,35 @@ export default async function TrialRunDetailPage({ params }: PageProps) {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Manual Adjustments</h2>
+          <h2>人工调整</h2>
           <span className={pendingAdjustmentCount > 0 ? "badge amber" : "badge green"}>
-            {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} pending` : "no pending"}
+            {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} 条待处理` : "无待处理"}
           </span>
         </div>
         <div className="panel-body">
           {detail.adjustments.length === 0 ? (
-            <p className="empty-state">No manual adjustment has been recorded for this period.</p>
+            <p className="empty-state">该账期暂无人工调整记录。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Type</th>
-                  <th>Direction</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Applied run</th>
-                  <th>Reason</th>
+                  <th>调整对象</th>
+                  <th>调整类型</th>
+                  <th>方向</th>
+                  <th>调整金额</th>
+                  <th>状态</th>
+                  <th>进入批次</th>
+                  <th>原因</th>
                 </tr>
               </thead>
               <tbody>
                 {detail.adjustments.map((adjustment) => (
                   <tr key={adjustment.id}>
                     <td>{adjustment.userId}</td>
-                    <td>{adjustment.adjustmentType}</td>
-                    <td>{adjustment.direction}</td>
+                    <td>{adjustmentTypeLabel(adjustment.adjustmentType)}</td>
+                    <td>{adjustmentDirectionLabel(adjustment.direction)}</td>
                     <td>{formatCny(adjustment.amountCents)}</td>
-                    <td>{adjustment.status}</td>
+                    <td>{statusLabel(adjustment.status, "adjustment")}</td>
                     <td>{adjustment.appliedRunId ?? "-"}</td>
                     <td>{adjustment.reason}</td>
                   </tr>
@@ -186,19 +196,19 @@ export default async function TrialRunDetailPage({ params }: PageProps) {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Report and Exports</h2>
-          <span className="badge green">{approvedRun ? "approved binding" : "waiting approval"}</span>
+          <h2>报告与导出</h2>
+          <span className="badge green">{approvedRun ? "已绑定审批批次" : "等待审批"}</span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
               <tr>
-                <th>Report</th>
-                <td>{report ? `${report.result} / ${report.approvalRunNo}` : "Not generated"}</td>
+                <th>试运行报告</th>
+                <td>{report ? `${trialRunResultLabel(report.result)} / ${report.approvalRunNo}` : "未生成"}</td>
               </tr>
               <tr>
-                <th>Export records</th>
-                <td>{detail.exports.map((record) => `${record.fileName} -> ${record.runNo}`).join(", ") || "None"}</td>
+                <th>导出记录</th>
+                <td>{detail.exports.map((record) => `${record.fileName} -> ${record.runNo}`).join(", ") || "暂无"}</td>
               </tr>
             </tbody>
           </table>

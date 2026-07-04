@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient | null = null;
@@ -107,6 +107,10 @@ async function createSqliteClient(): Promise<SqliteRawClient> {
 }
 
 function resolveDatabasePath(): string {
+  const configuredPath = process.env.LCS_DATABASE_PATH;
+  if (configuredPath) {
+    return isAbsolute(configuredPath) ? configuredPath : join(process.cwd(), configuredPath);
+  }
   const candidates = [
     join(process.cwd(), "packages/database/prisma/dev.db"),
     join(process.cwd(), "../../packages/database/prisma/dev.db")

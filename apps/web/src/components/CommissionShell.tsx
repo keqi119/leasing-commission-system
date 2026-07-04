@@ -48,9 +48,10 @@ const moduleContent = {
     subtitle: "周期从草稿、开启、财务锁定、HR 试算到老板审批和关闭。",
     owner: "老板 / HR",
     permission: "commission:period:manage",
+    columns: ["考核周期", "部门", "起止日期", "周期状态", "备注"],
     rows: [
-      ["2026-04", "租赁销售部", "PENDING_BOSS_APPROVAL", "财务已锁定，HR 已试算"],
-      ["2026-05", "租赁销售部", "OPEN", "收入台账录入中"]
+      ["2026-04", "租赁销售部", "2026-04-01 至 2026-04-30", "待老板审批", "财务已锁定，HR 已试算"],
+      ["2026-05", "租赁销售部", "2026-05-01 至 2026-05-31", "开启中", "收入台账录入中"]
     ]
   },
   targets: {
@@ -58,9 +59,10 @@ const moduleContent = {
     subtitle: "老板确认本期收入目标，审批后的指标调整才改变目标。",
     owner: "老板",
     permission: "commission:target:manage",
+    columns: ["考核周期", "部门 / 车辆", "指标金额", "来源类型", "备注"],
     rows: [
-      ["2026-04", "租赁销售部", "519,000.00", "MANUAL"],
-      ["2026-04", "车辆沪A-1001", "-3,000.00", "ADJUSTED"]
+      ["2026-04", "租赁销售部", "519,000.00", "手工确认", "老板确认目标"],
+      ["2026-04", "车辆沪A-1001", "-3,000.00", "审批调整", "维修停运调整"]
     ]
   },
   rules: {
@@ -68,6 +70,7 @@ const moduleContent = {
     subtitle: "达成率落档后全额计提，分期规则区分本期应发和后续待发。",
     owner: "老板 / HR",
     permission: "commission:rule:manage",
+    columns: ["达成率区间", "提成比例", "计提口径", "状态"],
     rows: [
       ["70%-80%", "3%", "全额计提", "启用"],
       ["80%-90%", "5%", "全额计提", "启用"],
@@ -80,6 +83,7 @@ const moduleContent = {
     subtitle: "销售提交订单归属、车辆、客户和应收租金，财务不能修改订单归属。",
     owner: "销售 / 销售经理",
     permission: "commission:order:create",
+    columns: ["订单号", "销售", "车辆来源", "应收租金 / 说明"],
     rows: [
       ["LCS-202604-A01", "销售 A", "自有车", "300,000.00"],
       ["LCS-202604-C01", "销售 C", "外调", "只登记利润回款"]
@@ -90,6 +94,7 @@ const moduleContent = {
     subtitle: "仅记录进入公司账户的租金收入，审核通过且可计提后进入试算。",
     owner: "销售 / 财务",
     permission: "commission:revenue:review",
+    columns: ["销售", "收款金额", "财务审核状态", "收入口径"],
     rows: [
       ["销售 A", "300,000.00", "APPROVED", "OWNED_RENT"],
       ["销售 B", "39,000.00", "APPROVED", "HISTORICAL_RECEIVABLE"]
@@ -100,6 +105,7 @@ const moduleContent = {
     subtitle: "只登记销售打回公司的外调利润，不做完整收入成本核算。",
     owner: "销售 / 财务",
     permission: "commission:external-profit:review",
+    columns: ["销售", "外调利润金额", "财务审核状态", "是否参与提成"],
     rows: [["销售 C", "80,000.00", "APPROVED", "参与提成"]]
   },
   deposits: {
@@ -107,6 +113,7 @@ const moduleContent = {
     subtitle: "押金只登记收取、暂管人和退还状态，异常会提示 HR。",
     owner: "销售",
     permission: "commission:deposit:manage:self",
+    columns: ["销售", "押金金额", "退还状态", "风险提示"],
     rows: [
       ["销售 A", "50,000.00", "HELD", "不参与提成"],
       ["销售 B", "30,000.00", "DISPUTED", "风险提示"]
@@ -117,6 +124,7 @@ const moduleContent = {
     subtitle: "本阶段未收款订单不参与提成，保留部门应收阈值扩展点。",
     owner: "财务 / HR",
     permission: "commission:receivable:read",
+    columns: ["订单 / 欠款来源", "应收金额", "应收状态", "提成处理"],
     rows: [
       ["LCS-202604-A02", "99,900.00", "OPEN", "不参与提成"],
       ["历史欠款回收", "39,000.00", "CLEARED", "计入本月"]
@@ -127,6 +135,7 @@ const moduleContent = {
     subtitle: "停运、维修、下线、上线只形成流水，不自动调整指标。",
     owner: "资管",
     permission: "commission:target-adjustment:request",
+    columns: ["车牌号", "事件类型", "发生日期", "指标调整处理"],
     rows: [
       ["沪A-1001", "REPAIR", "2026-04-08", "已提交指标调整"],
       ["沪A-1002", "ONLINE", "2026-04-18", "无指标影响"]
@@ -137,6 +146,7 @@ const moduleContent = {
     subtitle: "资管申请，老板审批，通过后才影响本期收入指标。",
     owner: "资管 / 老板",
     permission: "commission:target-adjustment:approve",
+    columns: ["车辆", "原指标金额", "调整后指标金额", "审批状态"],
     rows: [
       ["沪A-1001", "519,000.00", "516,000.00", "PENDING"],
       ["沪A-1003", "20,000.00", "15,000.00", "APPROVED"]
@@ -147,6 +157,7 @@ const moduleContent = {
     subtitle: "审批指标调整和最终提成表，审批动作写入日志。",
     owner: "老板",
     permission: "commission:settlement:approve",
+    columns: ["审批对象类型", "审批对象", "审批动作", "操作角色"],
     rows: [
       ["SETTLEMENT_RUN", "2026-04-RUN-001", "SUBMIT", "HR"],
       ["TARGET_ADJUSTMENT", "沪A-1003", "APPROVE", "老板"]
@@ -157,6 +168,7 @@ const moduleContent = {
     subtitle: "老板审批通过后才能导出正式 xlsx 发放表。",
     owner: "HR",
     permission: "commission:settlement:export",
+    columns: ["结算批次", "导出格式", "导出人", "导出状态"],
     rows: [["2026-04-RUN-001", "XLSX", "HR", "待导出"]]
   }
 } as const;
@@ -209,17 +221,16 @@ export function ModulePage({ moduleKey }: { moduleKey: ModuleKey }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>对象</th>
-                <th>金额 / 类型</th>
-                <th>状态</th>
-                <th>备注</th>
+                {module.columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {module.rows.map((row) => (
                 <tr key={row.join("-")}>
-                  {row.map((cell) => (
-                    <td key={cell}>{cell}</td>
+                  {module.columns.map((column, index) => (
+                    <td key={`${column}-${row[index] ?? index}`}>{row[index] ?? "-"}</td>
                   ))}
                 </tr>
               ))}

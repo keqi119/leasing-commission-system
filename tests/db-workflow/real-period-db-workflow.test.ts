@@ -39,7 +39,7 @@ describe("LCS-P1-H05 real-period persisted workflow", () => {
     const check = await buildTrialRunCheckReportFromDb("2026-05");
     expect(check).toMatchObject({
       periodCode: "2026-05",
-      departmentName: "直营部",
+      departmentName: "Direct Leasing",
       departmentTargetCents: 45000000,
       commissionableRevenueCents: 45000000,
       achievementRateBps: 10000,

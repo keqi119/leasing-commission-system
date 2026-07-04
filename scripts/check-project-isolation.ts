@@ -20,7 +20,9 @@ const ignoredDirectories = new Set([
   ".next",
   "node_modules",
   "dist",
-  "coverage"
+  "coverage",
+  "local-data",
+  "release"
 ]);
 const ignoredFiles = new Set(["pnpm-lock.yaml"]);
 
