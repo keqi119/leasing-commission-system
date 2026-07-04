@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/server/auth";
-import { createSampleTrialRunWorkflowStore, getSettlementRunDiff } from "@/server/trial-run-workflow";
+import { getSettlementRunDiffForLatest } from "@/server/trial-run-db-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +15,10 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const { runId } = await context.params;
-  const store = createSampleTrialRunWorkflowStore();
-  const run = store.settlementRuns.find((candidate) => candidate.id === runId);
-  const previous = run?.basedOnRunId ? store.settlementRuns.find((candidate) => candidate.id === run.basedOnRunId) : undefined;
-  if (!run || !previous) {
+  const diff = await getSettlementRunDiffForLatest(runId);
+  if (!diff) {
     return NextResponse.json({ error: "Settlement diff is not available for this run" }, { status: 404 });
   }
 
-  return NextResponse.json({ data: getSettlementRunDiff(previous, run) });
+  return NextResponse.json({ data: diff });
 }

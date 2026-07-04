@@ -1,45 +1,76 @@
-import { createSampleTrialRunWorkflowStore } from "@/server/trial-run-workflow";
+import { listExportBindings, listSettlementRuns } from "@/server/trial-run-db-workflow";
 
-export default function ExportsPage() {
-  const store = createSampleTrialRunWorkflowStore();
+export const dynamic = "force-dynamic";
+
+export default async function ExportsPage() {
+  const [exports, runs] = await Promise.all([listExportBindings(), listSettlementRuns()]);
+  const exportableRuns = runs.filter((run) => ["APPROVED", "EXPORTED"].includes(run.status));
 
   return (
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">奖金发放导出记录</h1>
-          <p className="page-subtitle">正式导出只能绑定老板审批通过的 run，rejected run 不允许导出。</p>
+          <h1 className="page-title">Bonus Export Records</h1>
+          <p className="page-subtitle">
+            Formal payout files can only be generated from boss-approved runs and always retain runId / runNo binding.
+          </p>
         </div>
-        <span className="badge green">绑定 approved runNo</span>
+        <span className="badge green">{exportableRuns.length} approved run</span>
       </header>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>导出记录</h2>
+          <h2>Export Bindings</h2>
           <span className="badge blue">HR</span>
         </div>
         <div className="panel-body">
+          {exports.length === 0 ? (
+            <p className="empty-state">No formal export has been recorded. Approve a settlement run first.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Bound runNo</th>
+                  <th>Period</th>
+                  <th>Exported by</th>
+                  <th>Exported at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exports.map((record) => (
+                  <tr key={record.id}>
+                    <td>{record.fileName}</td>
+                    <td>{record.runNo}</td>
+                    <td>{record.periodCode}</td>
+                    <td>{record.exportedBy}</td>
+                    <td>{record.exportedAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Exportable Runs</h2>
+          <span className="badge green">approved only</span>
+        </div>
+        <div className="panel-body">
           <table className="data-table">
-            <thead>
-              <tr>
-                <th>文件名</th>
-                <th>绑定 runNo</th>
-                <th>导出人</th>
-                <th>导出时间</th>
-              </tr>
-            </thead>
             <tbody>
-              {store.exports.map((record) => (
-                <tr key={record.id}>
-                  <td>{record.fileName}</td>
-                  <td>{record.runNo}</td>
-                  <td>{record.exportedBy}</td>
-                  <td>{record.exportedAt}</td>
+              {exportableRuns.map((run) => (
+                <tr key={run.id}>
+                  <th>{run.runNo}</th>
+                  <td>{run.status}</td>
+                  <td>{run.approvedBy ?? "-"}</td>
+                  <td>{run.approvedAt ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="empty-state">禁止导出原因示例：run 未审批、run 已驳回、周期处于重开修正中。</p>
         </div>
       </section>
     </>

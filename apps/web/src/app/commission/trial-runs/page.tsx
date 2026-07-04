@@ -1,73 +1,82 @@
 import Link from "next/link";
-import { createSampleTrialRunWorkflowStore } from "@/server/trial-run-workflow";
+import { listSettlementRuns, listTrialRuns } from "@/server/trial-run-db-workflow";
 
-export default function TrialRunsPage() {
-  const store = createSampleTrialRunWorkflowStore();
-  const trialRun = store.trialRuns[0];
-  const report = store.reports[0];
-  const approvedRun = store.settlementRuns.find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
+export const dynamic = "force-dynamic";
+
+export default async function TrialRunsPage() {
+  const [trialRuns, settlementRuns] = await Promise.all([listTrialRuns(), listSettlementRuns()]);
+  const approvedRun = settlementRuns.find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
+  const openIssueHint = trialRuns.length === 0 ? "Create a trial run after real-period import commit." : "Track issues, recalculation, approval, export, and report retention.";
 
   return (
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">真实账期试运行闭环</h1>
-          <p className="page-subtitle">记录试运行问题、修正、重算、审批、导出和报告留存。</p>
+          <h1 className="page-title">Trial Runs</h1>
+          <p className="page-subtitle">{openIssueHint}</p>
         </div>
-        <span className="badge green">{trialRun.result}</span>
+        <Link className="button-link" href="/commission/trial-runs/new">
+          New Trial Run
+        </Link>
       </header>
 
       <section className="metric-grid">
         <div className="metric">
-          <span>当前周期状态</span>
-          <strong>BOSS_APPROVED</strong>
+          <span>Trial runs</span>
+          <strong>{trialRuns.length}</strong>
         </div>
         <div className="metric">
-          <span>最新正式 run</span>
-          <strong>{approvedRun?.runNo}</strong>
+          <span>Settlement runs</span>
+          <strong>{settlementRuns.length}</strong>
         </div>
         <div className="metric">
-          <span>发现问题</span>
-          <strong>{report.issueCount}</strong>
+          <span>Latest approved run</span>
+          <strong>{approvedRun?.runNo ?? "-"}</strong>
         </div>
         <div className="metric">
-          <span>已解决问题</span>
-          <strong>{report.resolvedIssueCount}</strong>
+          <span>Next role</span>
+          <strong>{approvedRun ? "HR export" : "HR / Boss"}</strong>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>试运行批次</h2>
-          <span className="badge blue">下一步：HR 留存报告</span>
+          <h2>Persisted Trial Runs</h2>
+          <span className="badge blue">DB</span>
         </div>
         <div className="panel-body">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>考核周期</th>
-                <th>状态</th>
-                <th>结论</th>
-                <th>审批 runNo</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{trialRun.name}</td>
-                <td>{trialRun.periodCode}</td>
-                <td>{trialRun.status}</td>
-                <td>{trialRun.result}</td>
-                <td>{report.approvalRunNo}</td>
-                <td>
-                  <Link className="button-link secondary" href={`/commission/trial-runs/${trialRun.id}`}>
-                    查看
-                  </Link>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {trialRuns.length === 0 ? (
+            <p className="empty-state">No trial run has been created in the database yet.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Period</th>
+                  <th>Status</th>
+                  <th>Result</th>
+                  <th>Started by</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trialRuns.map((trialRun) => (
+                  <tr key={trialRun.id}>
+                    <td>{trialRun.name}</td>
+                    <td>{trialRun.periodCode}</td>
+                    <td>{trialRun.status}</td>
+                    <td>{trialRun.result ?? "-"}</td>
+                    <td>{trialRun.startedBy}</td>
+                    <td>
+                      <Link className="button-link secondary" href={`/commission/trial-runs/${trialRun.id}`}>
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </>

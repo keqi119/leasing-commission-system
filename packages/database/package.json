@@ -15,11 +15,11 @@
     "seed:acceptance": "tsx prisma/seed.acceptance.ts"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0"
+    "@prisma/client": "^7.8.0",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "prisma": "^7.8.0",
-    "typescript": "^5.9.3",
-    "sql.js": "^1.14.1"
+    "typescript": "^5.9.3"
   }
 }

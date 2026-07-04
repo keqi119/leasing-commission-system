@@ -1,4 +1,4 @@
-import { getPrisma } from "@lcs/database";
+import { getSqliteClient } from "@lcs/database";
 import type { CommissionPermission } from "@lcs/shared";
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/server/auth";
@@ -12,73 +12,73 @@ type RouteContext = {
 const resourceConfig: Record<
   string,
   {
-    model: string;
+    table: string;
     readPermission: CommissionPermission;
     writePermission: CommissionPermission;
   }
 > = {
   periods: {
-    model: "commissionPeriod",
+    table: "CommissionPeriod",
     readPermission: "commission:period:read",
     writePermission: "commission:period:manage"
   },
   targets: {
-    model: "commissionTarget",
+    table: "CommissionTarget",
     readPermission: "commission:period:read",
     writePermission: "commission:target:manage"
   },
   rules: {
-    model: "commissionRuleSet",
+    table: "CommissionRuleSet",
     readPermission: "commission:period:read",
     writePermission: "commission:rule:manage"
   },
   orders: {
-    model: "leaseOrderLedger",
+    table: "LeaseOrderLedger",
     readPermission: "commission:order:read:department",
     writePermission: "commission:order:create"
   },
   revenue: {
-    model: "revenueReceiptLedger",
+    table: "RevenueReceiptLedger",
     readPermission: "commission:order:read:department",
     writePermission: "commission:revenue:submit"
   },
   "external-profit": {
-    model: "externalProfitReceipt",
+    table: "ExternalProfitReceipt",
     readPermission: "commission:order:read:department",
     writePermission: "commission:external-profit:submit"
   },
   deposits: {
-    model: "depositLedger",
+    table: "DepositLedger",
     readPermission: "commission:deposit:manage:self",
     writePermission: "commission:deposit:manage:self"
   },
   receivables: {
-    model: "receivableSnapshot",
+    table: "ReceivableSnapshot",
     readPermission: "commission:receivable:read",
     writePermission: "commission:receivable:read"
   },
   "vehicle-events": {
-    model: "vehicleStatusEvent",
+    table: "VehicleStatusEvent",
     readPermission: "commission:period:read",
     writePermission: "commission:target-adjustment:request"
   },
   "target-adjustments": {
-    model: "targetAdjustmentRequest",
+    table: "TargetAdjustmentRequest",
     readPermission: "commission:period:read",
     writePermission: "commission:target-adjustment:request"
   },
   settlements: {
-    model: "commissionSettlementRun",
+    table: "CommissionSettlementRun",
     readPermission: "commission:period:read",
     writePermission: "commission:settlement:calculate"
   },
   approvals: {
-    model: "commissionApprovalLog",
+    table: "CommissionApprovalLog",
     readPermission: "commission:period:read",
     writePermission: "commission:settlement:approve"
   },
   exports: {
-    model: "commissionExportRecord",
+    table: "CommissionExportRecord",
     readPermission: "commission:settlement:export",
     writePermission: "commission:settlement:export"
   }
@@ -97,8 +97,8 @@ export async function GET(request: Request, context: RouteContext) {
     return permission.response;
   }
 
-  const prisma = getPrisma() as unknown as Record<string, { findMany: Function }>;
-  const rows = await prisma[config.model].findMany({ take: 100 });
+  const db = await getSqliteClient();
+  const rows = await db.$queryRawUnsafe(`SELECT * FROM ${config.table} LIMIT 100`);
 
   return NextResponse.json({ data: rows });
 }
@@ -116,10 +116,15 @@ export async function POST(request: Request, context: RouteContext) {
     return permission.response;
   }
 
-  const body = await request.json();
-  const prisma = getPrisma() as unknown as Record<string, { create: Function }>;
-  const row = await prisma[config.model].create({ data: body });
+  const body = (await request.json()) as Record<string, unknown>;
+  const row: Record<string, unknown> = { id: `${resource}-${Date.now()}`, ...body };
+  const columns = Object.keys(row);
+  const placeholders = columns.map(() => "?").join(", ");
+  const db = await getSqliteClient();
+  await db.$executeRawUnsafe(
+    `INSERT INTO ${config.table} (${columns.join(", ")}) VALUES (${placeholders})`,
+    ...columns.map((column) => row[column])
+  );
 
   return NextResponse.json({ data: row }, { status: 201 });
 }
-

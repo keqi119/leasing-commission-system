@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { formatBps, formatCny } from "@/server/sample";
-import { createSampleTrialRunWorkflowStore, getSettlementRunDiff } from "@/server/trial-run-workflow";
+import { getSettlementRunDiffForLatest } from "@/server/trial-run-db-workflow";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ runId: string }>;
@@ -13,21 +15,18 @@ function formatDelta(cents: number) {
 
 export default async function SettlementDiffPage({ params }: PageProps) {
   const { runId } = await params;
-  const store = createSampleTrialRunWorkflowStore();
-  const run = store.settlementRuns.find((candidate) => candidate.id === runId);
-  const previous = run?.basedOnRunId ? store.settlementRuns.find((candidate) => candidate.id === run.basedOnRunId) : undefined;
-  if (!run || !previous) {
+  const diff = await getSettlementRunDiffForLatest(runId);
+  if (!diff) {
     notFound();
   }
-  const diff = getSettlementRunDiff(previous, run);
 
   return (
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">结算差异说明</h1>
+          <h1 className="page-title">Settlement Diff</h1>
           <p className="page-subtitle">
-            对比 {diff.fromRunNo} 与 {diff.toRunNo}，用于老板审批前理解重算变化。
+            Comparing {diff.fromRunNo} to {diff.toRunNo}. The old run is retained and the new run has its own snapshot.
           </p>
         </div>
         <span className="badge blue">{diff.toRunNo}</span>
@@ -35,20 +34,20 @@ export default async function SettlementDiffPage({ params }: PageProps) {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>部门口径差异</h2>
-          <span className="badge amber">结构化差异</span>
+          <h2>Department Changes</h2>
+          <span className="badge amber">structured diff</span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
-              <tr><th>部门目标</th><td>{formatDelta(diff.summary.targetAmountCents.deltaCents)}</td></tr>
-              <tr><th>自有车租金收入</th><td>{formatDelta(diff.summary.ownedVehicleRevenueAmountCents.deltaCents)}</td></tr>
-              <tr><th>外调利润回款</th><td>{formatDelta(diff.summary.externalProfitAmountCents.deltaCents)}</td></tr>
-              <tr><th>历史欠款回收</th><td>{formatDelta(diff.summary.historicalReceivableRecoveredAmountCents.deltaCents)}</td></tr>
-              <tr><th>可计提收入</th><td>{formatDelta(diff.summary.confirmedRevenueAmountCents.deltaCents)}</td></tr>
-              <tr><th>达成率变化</th><td>{formatBps(diff.summary.achievementRateBps.deltaCents)}</td></tr>
-              <tr><th>适用提成比例变化</th><td>{formatBps(diff.summary.appliedCommissionRateBps.deltaCents)}</td></tr>
-              <tr><th>部门提成池</th><td>{formatDelta(diff.summary.departmentCommissionPoolCents.deltaCents)}</td></tr>
+              <tr><th>Target</th><td>{formatDelta(diff.summary.targetAmountCents.deltaCents)}</td></tr>
+              <tr><th>Owned rent</th><td>{formatDelta(diff.summary.ownedVehicleRevenueAmountCents.deltaCents)}</td></tr>
+              <tr><th>External profit</th><td>{formatDelta(diff.summary.externalProfitAmountCents.deltaCents)}</td></tr>
+              <tr><th>Historical receivable recovered</th><td>{formatDelta(diff.summary.historicalReceivableRecoveredAmountCents.deltaCents)}</td></tr>
+              <tr><th>Commissionable revenue</th><td>{formatDelta(diff.summary.confirmedRevenueAmountCents.deltaCents)}</td></tr>
+              <tr><th>Achievement rate</th><td>{formatBps(diff.summary.achievementRateBps.deltaCents)}</td></tr>
+              <tr><th>Applied commission rate</th><td>{formatBps(diff.summary.appliedCommissionRateBps.deltaCents)}</td></tr>
+              <tr><th>Commission pool</th><td>{formatDelta(diff.summary.departmentCommissionPoolCents.deltaCents)}</td></tr>
             </tbody>
           </table>
         </div>
@@ -56,20 +55,20 @@ export default async function SettlementDiffPage({ params }: PageProps) {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>个人差异</h2>
-          <span className="badge green">按销售展示</span>
+          <h2>Line Changes</h2>
+          <span className="badge green">by employee</span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <thead>
               <tr>
-                <th>员工</th>
-                <th>贡献收入变化</th>
-                <th>贡献率变化</th>
-                <th>提成总额变化</th>
-                <th>当期应发变化</th>
-                <th>后续待发变化</th>
-                <th>调整变化</th>
+                <th>Employee</th>
+                <th>Contribution</th>
+                <th>Contribution rate</th>
+                <th>Gross</th>
+                <th>Current</th>
+                <th>Future</th>
+                <th>Adjustment</th>
               </tr>
             </thead>
             <tbody>

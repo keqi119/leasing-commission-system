@@ -12,7 +12,8 @@ const forbiddenTerms = [
 ];
 const allowedFiles = new Set([
   "docs/project-isolation.md",
-  "docs/commission/lcs-p1-h02-acceptance-plan.md"
+  "docs/commission/lcs-p1-h02-acceptance-plan.md",
+  "docs/commission/lcs-p1-h05-real-period-trial-run-plan.md"
 ]);
 const ignoredDirectories = new Set([
   ".git",
