@@ -1,6 +1,5 @@
-import { ModulePage } from "@/components/CommissionShell";
+import { OfflineCrudPage } from "@/components/OfflineCrudPage";
 
 export default function TargetsPage() {
-  return <ModulePage moduleKey="targets" />;
+  return <OfflineCrudPage resource="targets" />;
 }
-

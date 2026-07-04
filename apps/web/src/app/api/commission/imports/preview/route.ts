@@ -8,6 +8,7 @@ import {
   type RawImportRow
 } from "../../../../../server/imports";
 import { requirePermission } from "../../../../../server/auth";
+import { buildImportContextFromDb } from "../../../../../server/offline-v1-db";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,7 @@ export async function POST(request: Request) {
         contentType: file.type,
         buffer: Buffer.from(await file.arrayBuffer())
       });
-      const preview = previewImportRows(importType, rows, localImportContext, {
-        fileName: file.name
-      });
+      const preview = await previewWithBestContext(importType, rows, file.name);
       return NextResponse.json({ data: preview });
     } catch (error) {
       return NextResponse.json(
@@ -58,8 +57,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "importType and rows are required" }, { status: 400 });
   }
 
-  const preview = previewImportRows(body.importType, body.rows, localImportContext, {
-    fileName: body.fileName
-  });
+  const preview = await previewWithBestContext(body.importType, body.rows, body.fileName);
   return NextResponse.json({ data: preview });
+}
+
+async function previewWithBestContext(importType: ImportType, rows: RawImportRow[], fileName?: string) {
+  const dbPreview = previewImportRows(importType, rows, await getPreviewContext(), { fileName });
+  if (dbPreview.errorRows === 0) {
+    return dbPreview;
+  }
+  const fallbackPreview = previewImportRows(importType, rows, localImportContext, { fileName });
+  return fallbackPreview.errorRows < dbPreview.errorRows ? fallbackPreview : dbPreview;
+}
+
+async function getPreviewContext() {
+  try {
+    return await buildImportContextFromDb();
+  } catch {
+    return localImportContext;
+  }
 }

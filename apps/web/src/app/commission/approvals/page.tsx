@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SettlementActionPanel } from "@/components/SettlementActionPanel";
 import { statusLabel, yesNo } from "@/server/display-labels";
 import { buildExportGuidance } from "@/server/db-workflow-status";
 import { listSettlementRuns } from "@/server/trial-run-db-workflow";
@@ -25,6 +26,14 @@ export default async function ApprovalsPage() {
           {pendingRuns.length > 0 ? `${pendingRuns.length} 个待审批` : `正式批次 ${latestApproved?.runNo ?? "-"}`}
         </span>
       </header>
+
+      <SettlementActionPanel
+        mode="approvals"
+        latestRunId={currentRun?.id}
+        latestRunNo={currentRun?.runNo}
+        latestRunStatus={currentRun?.status}
+        defaultPeriodCode={currentRun?.periodCode ?? "2026-04"}
+      />
 
       <section className="panel">
         <div className="panel-head">

@@ -76,6 +76,35 @@ cd /d D:\leasing-commission-system
 docs/operations/windows-local-trial-guide.md
 ```
 
+## 线下单机 V1 真实操作入口
+
+H08 起，以下页面提供真实写库或真实流程动作：
+
+- `/commission/employees`：员工档案
+- `/commission/vehicles`：车辆档案
+- `/commission/periods`：考核周期
+- `/commission/targets`：收入指标
+- `/commission/rules`：提成规则集
+- `/commission/orders`：订单台账
+- `/commission/revenue`：租金收入
+- `/commission/external-profit`：外调利润回款
+- `/commission/deposits`：押金台账
+- `/commission/vehicle-events`：车辆状态流水
+- `/commission/target-adjustments`：指标调整申请
+- `/commission/imports`：Excel / CSV 导入中心
+- `/commission/finance-review`：财务审核入口
+- `/commission/settlements`：HR 真实试算和提交审批
+- `/commission/approvals`：老板审批或驳回
+- `/commission/exports`：approved run 正式导出
+
+页面顶部可切换本地试用角色。该能力只用于 Windows 单机试用，不是正式登录认证。
+
+中文线下 V1 使用说明书：
+
+```text
+docs/operations/offline-v1-user-guide.md
+```
+
 ## 常用命令
 
 ```powershell

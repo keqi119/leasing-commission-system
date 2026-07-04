@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient | null = null;
@@ -38,6 +38,10 @@ export type { PrismaClient } from "@prisma/client";
 export function getSqliteClient(): Promise<SqliteRawClient> {
   sqliteClientPromise ??= createSqliteClient();
   return sqliteClientPromise;
+}
+
+export function resetSqliteClientForTests(): void {
+  sqliteClientPromise = null;
 }
 
 async function createSqliteClient(): Promise<SqliteRawClient> {
@@ -107,17 +111,32 @@ async function createSqliteClient(): Promise<SqliteRawClient> {
 }
 
 function resolveDatabasePath(): string {
+  const workspaceRoot = resolveWorkspaceRoot();
   const configuredPath = process.env.LCS_DATABASE_PATH;
   if (configuredPath) {
-    return isAbsolute(configuredPath) ? configuredPath : join(process.cwd(), configuredPath);
+    return isAbsolute(configuredPath) ? configuredPath : join(workspaceRoot, configuredPath);
   }
   const candidates = [
-    join(process.cwd(), "packages/database/prisma/dev.db"),
-    join(process.cwd(), "../../packages/database/prisma/dev.db")
+    join(workspaceRoot, "local-data/db/dev.db"),
+    join(workspaceRoot, "packages/database/prisma/dev.db")
   ];
   const databasePath = candidates.find((candidate) => existsSync(candidate));
   if (!databasePath) {
     throw new Error(`SQLite database not found. Tried: ${candidates.join(", ")}. Run pnpm seed:acceptance first.`);
   }
   return databasePath;
+}
+
+function resolveWorkspaceRoot(): string {
+  let current = resolve(process.cwd());
+  while (true) {
+    if (existsSync(join(current, "pnpm-workspace.yaml"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return resolve(process.cwd());
+    }
+    current = parent;
+  }
 }

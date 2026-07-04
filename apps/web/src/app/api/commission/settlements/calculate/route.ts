@@ -1,10 +1,7 @@
-import {
-  calculateCommissionSettlement,
-  type CommissionSettlementInput
-} from "@lcs/commission-engine";
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
-import { acceptanceScenarioInput } from "@/server/sample";
+import { recalculateSettlementRun } from "@/server/trial-run-db-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -17,18 +14,16 @@ export async function POST(request: Request) {
     return permission.response;
   }
 
-  const body = (await request.json().catch(() => null)) as Partial<
-    CommissionSettlementInput
-  > | null;
-  const input =
-    body && typeof body.targetAmountCents === "number"
-      ? (body as CommissionSettlementInput)
-      : acceptanceScenarioInput;
-  const settlement = calculateCommissionSettlement(input);
-
-  return NextResponse.json({
-    data: settlement,
-    calculatedBy: permission.actor.userId,
-    calculatedAt: new Date().toISOString()
-  });
+  const body = (await request.json().catch(() => ({}))) as { periodCode?: string; basedOnRunId?: string };
+  try {
+    return NextResponse.json({
+      data: await recalculateSettlementRun({
+        periodCode: body.periodCode ?? "2026-04",
+        basedOnRunId: body.basedOnRunId,
+        calculatedBy: permission.actor.userId
+      })
+    });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

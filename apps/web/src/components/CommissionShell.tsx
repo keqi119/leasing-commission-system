@@ -20,9 +20,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LocalRoleSwitcher } from "./LocalRoleSwitcher";
 
 export const navItems = [
   { href: "/commission", label: "提成首页", icon: LayoutDashboard },
+  { href: "/commission/employees", label: "员工档案", icon: UserRoundCog },
+  { href: "/commission/vehicles", label: "车辆档案", icon: Car },
   { href: "/commission/periods", label: "考核周期", icon: CalendarDays },
   { href: "/commission/targets", label: "收入指标", icon: Target },
   { href: "/commission/rules", label: "提成规则", icon: SlidersHorizontal },
@@ -34,6 +37,7 @@ export const navItems = [
   { href: "/commission/receivables", label: "应收账款", icon: FileSpreadsheet },
   { href: "/commission/vehicle-events", label: "车辆状态", icon: Car },
   { href: "/commission/target-adjustments", label: "指标调整", icon: Scale },
+  { href: "/commission/finance-review", label: "财务审核", icon: ClipboardCheck },
   { href: "/commission/settlements", label: "HR 试算", icon: Gauge },
   { href: "/commission/adjustments", label: "人工调整", icon: BadgeCheck },
   { href: "/commission/trial-run-checks", label: "试运行校验", icon: ListChecks },
@@ -197,7 +201,10 @@ export function CommissionShell({ children }: { children: ReactNode }) {
           })}
         </nav>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        <LocalRoleSwitcher />
+        {children}
+      </main>
     </div>
   );
 }

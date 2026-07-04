@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  commitImportPreview,
+  commitImportPreviewToDb,
   localImportBatches,
-  localImportContext,
   type ImportPreviewResult
 } from "../../../../../server/imports";
 import { requirePermission } from "../../../../../server/auth";
@@ -28,8 +27,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = commitImportPreview(preview, localImportContext, {
-      committedBy: permission.actor.userId
+    const result = await commitImportPreviewToDb(preview, {
+      actor: permission.actor
     });
     return NextResponse.json({ data: result });
   } catch (error) {

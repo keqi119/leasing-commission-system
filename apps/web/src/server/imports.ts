@@ -12,6 +12,8 @@ import {
   type SettlementSnapshotResult
 } from "@lcs/commission-engine";
 
+export { commitImportPreviewToDb } from "./offline-v1-db";
+
 export const importTypes = [
   "employees",
   "vehicles",
@@ -20,7 +22,8 @@ export const importTypes = [
   "revenue",
   "external-profit",
   "deposits",
-  "vehicle-events"
+  "vehicle-events",
+  "target-adjustments"
 ] as const;
 
 export type ImportType = (typeof importTypes)[number];
@@ -373,6 +376,13 @@ const templates: ImportTemplateDefinition[] = [
     worksheetName: "车辆状态流水",
     columns: ["考核周期", "车牌号", "状态类型", "开始日期", "结束日期", "原因", "备注"],
     description: "车辆状态流水只记录事实，不自动调整收入指标。"
+  },
+  {
+    importType: "target-adjustments",
+    label: "指标调整申请导入模板",
+    worksheetName: "指标调整申请",
+    columns: ["考核周期", "车牌号", "原因类型", "原指标金额", "调整后指标金额", "申请原因", "备注"],
+    description: "资管可导入指标调整申请，老板审批通过后才影响 HR 试算目标。"
   }
 ];
 

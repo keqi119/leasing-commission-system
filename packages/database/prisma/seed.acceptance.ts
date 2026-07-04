@@ -8,6 +8,7 @@ import {
   calculateCommissionSettlement,
   expectedAcceptanceSummary
 } from "../../commission-engine/src/index";
+import { resetSqliteClientForTests } from "../src/index";
 
 const ids = {
   department: "acc-dept-leasing-sales",
@@ -27,6 +28,7 @@ const ids = {
 } as const;
 
 const seedDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(seedDir, "../../..");
 const databasePath = resolveSeedDatabasePath();
 const date = (value: string) => `${value}T00:00:00.000Z`;
 const now = "2026-05-06T09:00:00.000Z";
@@ -34,9 +36,9 @@ const now = "2026-05-06T09:00:00.000Z";
 function resolveSeedDatabasePath(): string {
   const configuredPath = process.env.LCS_DATABASE_PATH;
   if (configuredPath) {
-    return isAbsolute(configuredPath) ? configuredPath : join(process.cwd(), configuredPath);
+    return isAbsolute(configuredPath) ? configuredPath : join(repoRoot, configuredPath);
   }
-  return join(seedDir, "dev.db");
+  return join(repoRoot, "local-data/db/dev.db");
 }
 
 export function buildAcceptanceSeedPlan() {
@@ -540,8 +542,12 @@ export async function seedAcceptance() {
     });
   }
 
-  mkdirSync(seedDir, { recursive: true });
+  for (const directory of ["local-data/db", "local-data/imports", "local-data/exports", "local-data/backups", "local-data/logs"]) {
+    mkdirSync(join(repoRoot, directory), { recursive: true });
+  }
+  mkdirSync(dirname(databasePath), { recursive: true });
   writeFileSync(databasePath, Buffer.from(db.export()));
+  resetSqliteClientForTests();
   db.close();
   return plan;
 }
