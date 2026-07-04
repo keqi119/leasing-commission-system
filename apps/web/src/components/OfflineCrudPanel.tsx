@@ -65,6 +65,18 @@ export function OfflineCrudPanel({ config, initialRows, references, importTempla
     }
   }
 
+  async function refreshRows() {
+    const response = await fetch(`/api/commission/offline/${config.resource}`, {
+      cache: "no-store",
+      headers: buildHeaders({})
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error ?? "刷新列表失败");
+    }
+    setRows(result.rows ?? []);
+  }
+
   async function review(row: Row, status: "APPROVED" | "REJECTED") {
     setMessage("");
     const id = String(row.id ?? "");
@@ -224,6 +236,7 @@ export function OfflineCrudPanel({ config, initialRows, references, importTempla
           templates={importTemplates}
           initialImportType={config.importType as ImportType}
           lockedImportType={config.importType as ImportType}
+          onCommitted={refreshRows}
         />
       ) : null}
     </>
