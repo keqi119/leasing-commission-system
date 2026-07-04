@@ -421,6 +421,62 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.drawer-panel {
+  width: min(560px, 100vw);
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: #fff;
+  box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+}
+
+.drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 18px;
+  background: #fff;
+}
+
+.drawer-head h2,
+.drawer-head p {
+  margin: 0;
+}
+
+.drawer-head p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.drawer-form.offline-form {
+  grid-template-columns: 1fr;
+  padding: 18px;
+}
+
+.drawer-form.offline-form input,
+.drawer-form.offline-form select,
+.drawer-form.offline-form textarea {
+  max-width: 100%;
+}
+
+.embedded-import-panel {
+  margin-top: 18px;
+}
+
 .action-panel {
   display: flex;
   flex-wrap: wrap;
@@ -460,6 +516,7 @@ textarea {
   .filter-bar,
   .offline-form,
   .local-role-switcher,
+  .drawer-form.offline-form,
   .template-grid,
   .two-column {
     grid-template-columns: 1fr;

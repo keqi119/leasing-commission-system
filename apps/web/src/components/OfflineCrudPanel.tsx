@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
+import type { ImportTemplateDefinition, ImportType } from "@/server/imports";
 import type { OfflineResource } from "@/server/offline-v1-db";
+import { ImportUploadPanel } from "./ImportUploadPanel";
 import type { OfflineCrudConfig, ReferenceType } from "./offline-crud-config";
 
 type Row = Record<string, unknown>;
@@ -12,16 +13,18 @@ interface OfflineCrudPanelProps {
   config: OfflineCrudConfig;
   initialRows: Row[];
   references: References;
+  importTemplates: ImportTemplateDefinition[];
   initialError?: string;
 }
 
 const roleStorageKey = "lcs-local-role";
 const userStorageKey = "lcs-local-user-id";
 
-export function OfflineCrudPanel({ config, initialRows, references, initialError }: OfflineCrudPanelProps) {
+export function OfflineCrudPanel({ config, initialRows, references, importTemplates, initialError }: OfflineCrudPanelProps) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [message, setMessage] = useState(initialError ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
   const canCreate = config.fields.length > 0;
   const referenceOptions = useMemo(() => buildReferenceOptions(references), [references]);
 
@@ -53,6 +56,7 @@ export function OfflineCrudPanel({ config, initialRows, references, initialError
       }
       setRows(result.rows ?? [result.record, ...rows]);
       event.currentTarget.reset();
+      setIsCreateDrawerOpen(false);
       setMessage("已保存，刷新页面后仍可看到这条数据。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "提交失败");
@@ -99,10 +103,10 @@ export function OfflineCrudPanel({ config, initialRows, references, initialError
         </div>
         <div className="header-actions">
           <span className="badge blue">{config.owner}</span>
-          {config.importType ? (
-            <Link className="button-link secondary" href={`/commission/imports?type=${config.importType}`}>
-              导入数据
-            </Link>
+          {canCreate ? (
+            <button className="button-link" type="button" onClick={() => setIsCreateDrawerOpen(true)}>
+              新增{config.title}
+            </button>
           ) : null}
         </div>
       </header>
@@ -113,53 +117,60 @@ export function OfflineCrudPanel({ config, initialRows, references, initialError
         </section>
       ) : null}
 
-      {canCreate ? (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>新增{config.title}</h2>
-            <span className="badge green">真实写入本地数据库</span>
-          </div>
-          <form className="panel-body offline-form" onSubmit={submit}>
-            {config.fields.map((field) => (
-              <label key={field.name}>
-                {field.label}
-                {field.type === "textarea" ? (
-                  <textarea name={field.name} placeholder={field.placeholder} required={field.required} defaultValue={String(field.defaultValue ?? "")} />
-                ) : field.type === "select" ? (
-                  <select name={field.name} required={field.required} defaultValue={String(field.defaultValue ?? "")}>
-                    <option value="">请选择</option>
-                    {(field.reference
-                      ? referenceOptions[field.reference].map((row) => ({
-                          label: String(row[field.labelKey ?? "name"] ?? row.id ?? ""),
-                          value: String(row[field.valueKey ?? "id"] ?? "")
-                        }))
-                      : field.options ?? []
-                    ).map((option) => (
-                      <option key={`${field.name}-${option.value}`} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    name={field.name}
-                    type={field.type === "money" ? "number" : field.type}
-                    step={field.type === "money" ? "0.01" : undefined}
-                    required={field.required}
-                    placeholder={field.placeholder}
-                    defaultValue={typeof field.defaultValue === "boolean" ? String(field.defaultValue) : String(field.defaultValue ?? "")}
-                  />
-                )}
-              </label>
-            ))}
-            <div className="form-actions">
-              <button className="button-link" disabled={isSubmitting} type="submit">
-                {isSubmitting ? "保存中..." : "保存"}
+      {canCreate && isCreateDrawerOpen ? (
+        <div className="drawer-backdrop" role="presentation" onMouseDown={() => setIsCreateDrawerOpen(false)}>
+          <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label={`新增${config.title}`} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="drawer-head">
+              <div>
+                <h2>新增{config.title}</h2>
+                <p>填写完成后保存，数据会真实写入本地数据库。</p>
+              </div>
+              <button className="button-link secondary" type="button" onClick={() => setIsCreateDrawerOpen(false)}>
+                关闭
               </button>
-              <span className="badge amber">本地角色模拟会随请求自动提交</span>
             </div>
-          </form>
-        </section>
+            <form className="drawer-form offline-form" onSubmit={submit}>
+              {config.fields.map((field) => (
+                <label key={field.name}>
+                  {field.label}
+                  {field.type === "textarea" ? (
+                    <textarea name={field.name} placeholder={field.placeholder} required={field.required} defaultValue={String(field.defaultValue ?? "")} />
+                  ) : field.type === "select" ? (
+                    <select name={field.name} required={field.required} defaultValue={String(field.defaultValue ?? "")}>
+                      <option value="">请选择</option>
+                      {(field.reference
+                        ? referenceOptions[field.reference].map((row) => ({
+                            label: String(row[field.labelKey ?? "name"] ?? row.id ?? ""),
+                            value: String(row[field.valueKey ?? "id"] ?? "")
+                          }))
+                        : field.options ?? []
+                      ).map((option) => (
+                        <option key={`${field.name}-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      name={field.name}
+                      type={field.type === "money" ? "number" : field.type}
+                      step={field.type === "money" ? "0.01" : undefined}
+                      required={field.required}
+                      placeholder={field.placeholder}
+                      defaultValue={typeof field.defaultValue === "boolean" ? String(field.defaultValue) : String(field.defaultValue ?? "")}
+                    />
+                  )}
+                </label>
+              ))}
+              <div className="form-actions">
+                <button className="button-link" disabled={isSubmitting} type="submit">
+                  {isSubmitting ? "保存中..." : "保存"}
+                </button>
+                <span className="badge amber">本地角色模拟会随请求自动提交</span>
+              </div>
+            </form>
+          </aside>
+        </div>
       ) : null}
 
       <section className="panel">
@@ -205,6 +216,16 @@ export function OfflineCrudPanel({ config, initialRows, references, initialError
           )}
         </div>
       </section>
+
+      {config.importType ? (
+        <ImportUploadPanel
+          embedded
+          showTemplateDownloads
+          templates={importTemplates}
+          initialImportType={config.importType as ImportType}
+          lockedImportType={config.importType as ImportType}
+        />
+      ) : null}
     </>
   );
 }

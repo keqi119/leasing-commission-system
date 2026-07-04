@@ -12,7 +12,7 @@ This folder is ignored by Git. Do not commit real or sensitive files.
 
 ## Required Files
 
-Use the standard templates from `/commission/imports`:
+Use the standard templates embedded at the bottom of each business ledger page:
 
 - employees
 - vehicles

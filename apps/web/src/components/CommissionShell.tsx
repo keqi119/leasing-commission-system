@@ -29,7 +29,6 @@ export const navItems = [
   { href: "/commission/periods", label: "考核周期", icon: CalendarDays },
   { href: "/commission/targets", label: "收入指标", icon: Target },
   { href: "/commission/rules", label: "提成规则", icon: SlidersHorizontal },
-  { href: "/commission/imports", label: "数据导入", icon: FileSpreadsheet },
   { href: "/commission/orders", label: "订单台账", icon: ReceiptText },
   { href: "/commission/revenue", label: "租金收入", icon: Banknote },
   { href: "/commission/external-profit", label: "外调利润", icon: WalletCards },
@@ -219,13 +218,7 @@ export function ModulePage({ moduleKey }: { moduleKey: ModuleKey }) {
           <h1 className="page-title">{module.title}</h1>
           <p className="page-subtitle">{module.subtitle}</p>
         </div>
-        {"importType" in module ? (
-          <Link className="button-link" href={`/commission/imports?type=${module.importType}`}>
-            导入数据
-          </Link>
-        ) : (
-          <span className="badge blue">{module.owner}</span>
-        )}
+        <span className="badge blue">{module.owner}</span>
       </header>
       <section className="panel">
         <div className="panel-head">

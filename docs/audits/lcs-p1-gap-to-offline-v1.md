@@ -156,7 +156,7 @@ H08 已补齐线下单机 V1 的主要真实操作入口：
 - seed、health、页面读取、导入提交和导出记录使用同一数据库
 - 增加本地试用角色选择器，浏览器页面操作不再需要手工设置 header
 - 员工、车辆、周期、指标、规则、订单、收入、外调利润、押金、车辆状态、指标调整页面提供真实新增和列表读取
-- 导入中心提交后写入 ImportBatch、ImportBatchRow 和对应业务台账
+- 各业务板块内嵌导入提交后写入 ImportBatch、ImportBatchRow 和对应业务台账
 - 财务可审核租金收入和外调利润
 - HR 可生成真实 settlement run 并提交审批
 - 老板可审批或驳回 settlement run
