@@ -1,8 +1,20 @@
 import Link from "next/link";
-import { getImportTemplates } from "@/server/imports";
+import { ImportUploadPanel } from "@/components/ImportUploadPanel";
+import { getImportTemplates, importTypes, type ImportType } from "@/server/imports";
 
-export default function ImportsPage() {
+type ImportsPageProps = {
+  searchParams?: Promise<{ type?: string | string[] }>;
+};
+
+function resolveInitialImportType(value: string | string[] | undefined): ImportType | undefined {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return importTypes.includes(candidate as ImportType) ? candidate as ImportType : undefined;
+}
+
+export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   const templates = getImportTemplates();
+  const params = await searchParams;
+  const initialImportType = resolveInitialImportType(params?.type);
 
   return (
     <>
@@ -10,11 +22,13 @@ export default function ImportsPage() {
         <div>
           <h1 className="page-title">试运行数据导入</h1>
           <p className="page-subtitle">
-            先下载标准模板，上传后系统预览并逐行校验；没有错误行时才能整批提交。
+            先下载标准模板，填写后上传文件预览校验；没有错误行时，才能整批提交入库。
           </p>
         </div>
         <span className="badge green">标准模板导入</span>
       </header>
+
+      <ImportUploadPanel templates={templates} initialImportType={initialImportType} />
 
       <section className="template-grid">
         {templates.map((template) => (
@@ -50,10 +64,11 @@ export default function ImportsPage() {
         </div>
         <div className="panel-body">
           <ol className="workflow-list">
-            <li>下载对应业务模板，按中文列名填写。</li>
-            <li>上传文件到预览接口，系统检查必填、金额、日期、周期、员工、车辆和订单依赖。</li>
-            <li>逐行修正错误后重新上传；任意错误行存在时不允许提交。</li>
-            <li>提交时按整批原子化写入，并保留导入批次、行号、原始数据和错误原因。</li>
+            <li>下载对应业务模板，按中文列名填写，保持表头不变。</li>
+            <li>在上方选择导入类型和文件，点击“上传并预览”。</li>
+            <li>系统逐行检查必填、金额、日期、周期、员工、车辆和订单依赖。</li>
+            <li>修正所有错误后重新上传；任意错误行存在时，不允许提交入库。</li>
+            <li>预览通过后点击“确认提交入库”，系统会保留导入批次、行号、原始数据和错误原因。</li>
           </ol>
         </div>
       </section>

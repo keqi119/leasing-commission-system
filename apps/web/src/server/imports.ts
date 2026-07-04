@@ -88,6 +88,12 @@ export interface ImportCommitResult {
   ledger: ImportContext;
 }
 
+export interface ImportFileRowsInput {
+  fileName: string;
+  contentType?: string;
+  buffer: Buffer;
+}
+
 interface PeriodRef {
   periodCode: string;
   departmentName: string;
@@ -384,6 +390,140 @@ export function getImportTemplates(): ImportTemplateDefinition[] {
 export function buildTemplateCsv(importType: ImportType): string {
   const template = getTemplate(importType);
   return `${template.columns.map(escapeCsvCell).join(",")}\n`;
+}
+
+export async function parseImportFileRows(input: ImportFileRowsInput): Promise<RawImportRow[]> {
+  const fileName = input.fileName.toLowerCase();
+  if (fileName.endsWith(".xlsx")) {
+    return parseXlsxImportRows(input.buffer);
+  }
+  if (fileName.endsWith(".csv") || input.contentType?.includes("csv")) {
+    return parseCsvImportRows(input.buffer.toString("utf8"));
+  }
+  throw new Error("仅支持上传 xlsx 或 csv 标准导入模板");
+}
+
+async function parseXlsxImportRows(buffer: Buffer): Promise<RawImportRow[]> {
+  const workbook = new ExcelJS.Workbook();
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+  await workbook.xlsx.load(arrayBuffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    throw new Error("上传文件中没有可读取的工作表");
+  }
+
+  const headerValues = worksheet.getRow(1).values;
+  const headers = (Array.isArray(headerValues) ? headerValues.slice(1) : [])
+    .map((value: ExcelJS.CellValue | undefined) => String(value ?? "").trim());
+  if (headers.length === 0 || headers.every((header) => !header)) {
+    throw new Error("上传文件第一行必须是模板表头");
+  }
+
+  const rows: RawImportRow[] = [];
+  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    const record: RawImportRow = {};
+    let hasValue = false;
+    headers.forEach((header, index) => {
+      if (!header) {
+        return;
+      }
+      const value = normalizeCellValue(row.getCell(index + 1).value);
+      record[header] = value;
+      if (value !== "") {
+        hasValue = true;
+      }
+    });
+    if (hasValue) {
+      rows.push(record);
+    }
+  }
+  return rows;
+}
+
+function normalizeCellValue(value: ExcelJS.CellValue): string | number | boolean {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "object") {
+    if ("text" in value && typeof value.text === "string") {
+      return value.text.trim();
+    }
+    if ("result" in value) {
+      return normalizeCellValue(value.result as ExcelJS.CellValue);
+    }
+    if ("richText" in value && Array.isArray(value.richText)) {
+      return value.richText.map((part) => part.text).join("").trim();
+    }
+    return String(value).trim();
+  }
+  return typeof value === "string" ? value.trim() : value;
+}
+
+function parseCsvImportRows(csvText: string): RawImportRow[] {
+  const matrix = parseCsvMatrix(csvText.replace(/^\uFEFF/, ""));
+  const headers = (matrix[0] ?? []).map((value) => value.trim());
+  if (headers.length === 0 || headers.every((header) => !header)) {
+    throw new Error("上传文件第一行必须是模板表头");
+  }
+
+  return matrix.slice(1).flatMap((line) => {
+    const record: RawImportRow = {};
+    let hasValue = false;
+    headers.forEach((header, index) => {
+      if (!header) {
+        return;
+      }
+      const value = line[index]?.trim() ?? "";
+      record[header] = value;
+      if (value) {
+        hasValue = true;
+      }
+    });
+    return hasValue ? [record] : [];
+  });
+}
+
+function parseCsvMatrix(csvText: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const char = csvText[index];
+    const next = csvText[index + 1];
+    if (char === "\"") {
+      if (inQuotes && next === "\"") {
+        cell += "\"";
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows;
 }
 
 export async function buildTemplateWorkbook(importType: ImportType): Promise<Buffer> {
