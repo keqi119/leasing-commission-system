@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { listSettlementRuns, listTrialRuns } from "@/server/trial-run-db-workflow";
+import { buildExportGuidance } from "@/server/db-workflow-status";
 
 export const dynamic = "force-dynamic";
 
 export default async function TrialRunsPage() {
   const [trialRuns, settlementRuns] = await Promise.all([listTrialRuns(), listSettlementRuns()]);
   const approvedRun = settlementRuns.find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
+  const latestTrialRun = trialRuns[0];
+  const latestRun = settlementRuns[0];
+  const exportGuidance = buildExportGuidance({ runNo: approvedRun?.runNo ?? latestRun?.runNo, status: approvedRun?.status ?? latestRun?.status });
   const openIssueHint = trialRuns.length === 0 ? "Create a trial run after real-period import commit." : "Track issues, recalculation, approval, export, and report retention.";
 
   return (
@@ -36,6 +40,29 @@ export default async function TrialRunsPage() {
         <div className="metric">
           <span>Next role</span>
           <strong>{approvedRun ? "HR export" : "HR / Boss"}</strong>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Current Status / Next Step</h2>
+          <span className={`badge ${exportGuidance.canExport ? "green" : "amber"}`}>
+            {exportGuidance.canExport ? "export ready" : "approval loop"}
+          </span>
+        </div>
+        <div className="panel-body">
+          <table className="data-table">
+            <tbody>
+              <tr><th>Current period</th><td>{latestTrialRun?.periodCode ?? latestRun?.periodCode ?? "-"}</td></tr>
+              <tr><th>Current Trial Run</th><td>{latestTrialRun?.name ?? "-"}</td></tr>
+              <tr><th>Current Settlement Run</th><td>{latestRun?.runNo ?? "-"}</td></tr>
+              <tr><th>Current status</th><td>{latestTrialRun?.status ?? latestRun?.status ?? "No trial run"}</td></tr>
+              <tr><th>Can submit approval</th><td>{latestRun && ["CALCULATED", "REJECTED"].includes(latestRun.status) ? "Check blockers and pending adjustments first" : "No"}</td></tr>
+              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
+              <tr><th>Next role</th><td>{exportGuidance.nextRole}</td></tr>
+              <tr><th>Next action</th><td>{exportGuidance.message}</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

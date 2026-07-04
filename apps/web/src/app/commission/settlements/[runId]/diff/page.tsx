@@ -34,6 +34,26 @@ export default async function SettlementDiffPage({ params }: PageProps) {
 
       <section className="panel">
         <div className="panel-head">
+          <h2>Current Status / Next Step</h2>
+          <span className="badge amber">diff review</span>
+        </div>
+        <div className="panel-body">
+          <table className="data-table">
+            <tbody>
+              <tr><th>Previous Settlement Run</th><td>{diff.fromRunNo}</td></tr>
+              <tr><th>Current Settlement Run</th><td>{diff.toRunNo}</td></tr>
+              <tr><th>Revenue change</th><td>{formatDelta(diff.summary.confirmedRevenueAmountCents.deltaCents)}</td></tr>
+              <tr><th>Pool change</th><td>{formatDelta(diff.summary.departmentCommissionPoolCents.deltaCents)}</td></tr>
+              <tr><th>Adjustment change</th><td>{formatDelta(diff.lines.reduce((total, line) => total + line.adjustmentAmountCents.deltaCents, 0))}</td></tr>
+              <tr><th>Can export</th><td>No. Export is available only after the current run is boss-approved.</td></tr>
+              <tr><th>Next action</th><td>HR explains this diff when resubmitting; boss reviews the current runNo before approval.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
           <h2>Department Changes</h2>
           <span className="badge amber">structured diff</span>
         </div>

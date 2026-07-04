@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { formatBps, formatCny } from "@/server/sample";
-import { listAdjustments, listSettlementRuns } from "@/server/trial-run-db-workflow";
+import { buildTrialRunCheckReportFromDb, listAdjustments, listSettlementRuns } from "@/server/trial-run-db-workflow";
+import { buildExportGuidance, buildSettlementSubmissionGuidance } from "@/server/db-workflow-status";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettlementsPage() {
-  const [runs, adjustments] = await Promise.all([listSettlementRuns(), listAdjustments()]);
+  const [runs, adjustments, checkReport] = await Promise.all([listSettlementRuns(), listAdjustments(), buildTrialRunCheckReportFromDb()]);
   const latestRun = runs[0];
   const pendingAdjustmentCount = adjustments.filter((adjustment) => ["DRAFT", "SUBMITTED"].includes(adjustment.status)).length;
+  const blockerCount = checkReport?.issueSuggestions.filter((issue) => issue.severity === "BLOCKER").length ?? 0;
+  const submissionGuidance = buildSettlementSubmissionGuidance({
+    runNo: latestRun?.runNo,
+    status: latestRun?.status,
+    blockerCount,
+    pendingAdjustmentCount
+  });
+  const exportGuidance = buildExportGuidance({ runNo: latestRun?.runNo, status: latestRun?.status });
 
   return (
     <>
@@ -44,6 +53,31 @@ export default async function SettlementsPage() {
 
       <section className="panel">
         <div className="panel-head">
+          <h2>Current Status / Next Step</h2>
+          <span className={`badge ${submissionGuidance.canSubmit || exportGuidance.canExport ? "green" : "amber"}`}>
+            {exportGuidance.canExport ? "export ready" : submissionGuidance.canSubmit ? "submit ready" : "blocked"}
+          </span>
+        </div>
+        <div className="panel-body">
+          <table className="data-table">
+            <tbody>
+              <tr><th>Current period</th><td>{latestRun?.periodCode ?? checkReport?.periodCode ?? "-"}</td></tr>
+              <tr><th>Current Trial Run</th><td>See Trial Runs for issue list and report</td></tr>
+              <tr><th>Current Settlement Run</th><td>{latestRun?.runNo ?? "-"}</td></tr>
+              <tr><th>Current status</th><td>{latestRun?.status ?? "No run"}</td></tr>
+              <tr><th>BLOCKER / MAJOR issue suggestions</th><td>{blockerCount} / {checkReport?.issueSuggestions.filter((issue) => issue.severity === "MAJOR").length ?? 0}</td></tr>
+              <tr><th>Pending adjustments</th><td>{pendingAdjustmentCount}</td></tr>
+              <tr><th>Can submit approval</th><td>{submissionGuidance.canSubmit ? "Yes" : "No"}</td></tr>
+              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
+              <tr><th>Next role</th><td>{exportGuidance.canExport ? exportGuidance.nextRole : submissionGuidance.nextRole}</td></tr>
+              <tr><th>Next action</th><td>{exportGuidance.canExport ? exportGuidance.message : submissionGuidance.message}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
           <h2>Run Versions</h2>
           <span className="badge blue">DB snapshots</span>
         </div>
@@ -60,6 +94,7 @@ export default async function SettlementsPage() {
                   <th>Revenue</th>
                   <th>Rate</th>
                   <th>Pool</th>
+                  <th>Reject reason</th>
                   <th>Next step</th>
                 </tr>
               </thead>
@@ -72,6 +107,7 @@ export default async function SettlementsPage() {
                     <td>{formatCny(run.snapshot.confirmedRevenueAmountCents)}</td>
                     <td>{formatBps(run.snapshot.appliedCommissionRateBps)}</td>
                     <td>{formatCny(run.snapshot.departmentCommissionPoolCents)}</td>
+                    <td>{run.rejectionReason ?? "-"}</td>
                     <td>
                       <Link className="button-link secondary" href={`/commission/settlements/${run.id}/diff`}>
                         Diff

@@ -1,4 +1,4 @@
-import { getSqliteClient, type SqliteRawClient } from "@lcs/database";
+﻿import { getSqliteClient, type SqliteRawClient } from "@lcs/database";
 import {
   calculateCommissionSettlement,
   type CommissionSettlementInput,
@@ -16,6 +16,9 @@ import type {
   TrialRunRecord,
   TrialRunReportRecord
 } from "./trial-run-workflow";
+import { DbWorkflowError } from "./db-workflow-errors";
+import { sumCents, toBool, toNumber } from "./db-workflow-money";
+import { summarizeTrialRunCheckIssues, type TrialRunIssueSuggestion } from "./db-workflow-status";
 
 type RawDbClient = SqliteRawClient;
 type DbClient = SqliteRawClient;
@@ -205,6 +208,7 @@ export interface TrialRunDetail {
   periodStatus: string;
   departmentName: string;
   issues: TrialRunIssueRecord[];
+  adjustments: CommissionAdjustmentRecord[];
   settlementRuns: SettlementRunRecord[];
   reports: TrialRunReportRecord[];
   exports: CommissionExportBinding[];
@@ -220,20 +224,36 @@ export interface RealPeriodFixtureResult {
 export interface DbTrialRunCheckReport {
   periodCode: string;
   departmentName: string;
+  periodStatus: string;
+  importBatchCount: number;
+  importBatchSources: string[];
+  employeeCount: number;
+  vehicleCount: number;
+  orderCount: number;
+  revenueReceiptCount: number;
+  externalProfitReceiptCount: number;
+  depositCount: number;
+  vehicleStatusEventCount: number;
   departmentTargetCents: number;
   orderReceivableCents: number;
   approvedRentRevenueCents: number;
   approvedExternalProfitCents: number;
   historicalRecoveredCents: number;
+  targetTotalCents: number;
+  unapprovedRevenueCents: number;
+  externalProfitTotalCents: number;
   depositTotalCents: number;
   abnormalDepositCount: number;
   unpaidOrderCount: number;
   pendingRevenueCount: number;
+  pendingTargetAdjustmentCount: number;
+  approvedTargetAdjustmentCount: number;
   commissionableRevenueCents: number;
   achievementRateBps: number;
   estimatedCommissionPoolCents: number;
   canStartHrCalculation: boolean;
   blockingReasons: string[];
+  issueSuggestions: TrialRunIssueSuggestion[];
 }
 
 const runNoPattern = /-RUN-(\d+)$/;
@@ -302,6 +322,7 @@ export async function getTrialRun(id: string): Promise<TrialRunDetail | null> {
     periodStatus: row.periodStatus,
     departmentName: row.departmentName ?? row.departmentId,
     issues: await listTrialRunIssues(id),
+    adjustments: await listAdjustmentsForPeriod(row.periodId),
     settlementRuns: runs,
     reports,
     exports
@@ -395,10 +416,10 @@ export async function createCommissionAdjustment(input: {
   settlementRunId?: string;
 }): Promise<CommissionAdjustmentRecord> {
   if (!input.reason.trim()) {
-    throw new Error("Manual adjustment requires a reason.");
+    throw new DbWorkflowError("ADJUSTMENT_REASON_REQUIRED");
   }
   if (input.amountCents <= 0) {
-    throw new Error("Manual adjustment amount must be greater than zero.");
+    throw new DbWorkflowError("ADJUSTMENT_AMOUNT_INVALID");
   }
   const client = await db();
   const period = await findPeriod(client, input);
@@ -433,7 +454,7 @@ export async function submitCommissionAdjustment(
   const client = await db();
   const adjustment = await getRequiredAdjustment(client, adjustmentId);
   if (adjustment.status !== "DRAFT") {
-    throw new Error("Only draft adjustments can be submitted.");
+    throw new DbWorkflowError("ADJUSTMENT_NOT_DRAFT", { adjustmentId });
   }
   await client.$executeRawUnsafe(`UPDATE CommissionAdjustment SET status = 'SUBMITTED', updatedAt = ? WHERE id = ?`, nowIso(), adjustmentId);
   return getRequiredAdjustment(client, adjustmentId);
@@ -446,7 +467,7 @@ export async function approveCommissionAdjustment(
   const client = await db();
   const adjustment = await getRequiredAdjustment(client, adjustmentId);
   if (adjustment.status !== "SUBMITTED") {
-    throw new Error("Only submitted adjustments can be approved.");
+    throw new DbWorkflowError("ADJUSTMENT_NOT_SUBMITTED", { adjustmentId });
   }
   const approvedAt = input.approvedAt ?? nowIso();
   await client.$executeRawUnsafe(
@@ -468,7 +489,7 @@ export async function rejectCommissionAdjustment(
   const client = await db();
   const adjustment = await getRequiredAdjustment(client, adjustmentId);
   if (!["DRAFT", "SUBMITTED"].includes(adjustment.status)) {
-    throw new Error("Only unapplied adjustments can be rejected.");
+    throw new DbWorkflowError("ADJUSTMENT_NOT_REJECTABLE", { adjustmentId });
   }
   await client.$executeRawUnsafe(`UPDATE CommissionAdjustment SET status = 'REJECTED', updatedAt = ? WHERE id = ?`, nowIso(), adjustmentId);
   return getRequiredAdjustment(client, adjustmentId);
@@ -569,15 +590,19 @@ export async function submitSettlementRun(
   const client = await db();
   const run = await getRequiredSettlementRun(client, runId);
   if (!["CALCULATED", "REJECTED"].includes(run.status)) {
-    throw new Error("Only calculated or rejected settlement runs can be submitted.");
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_SUBMITTABLE", { runId, runNo: run.runNo, status: run.status });
   }
   const blockers = await countOpenBlockerIssues(client, run.periodCode);
   if (blockers > 0) {
-    throw new Error("Open BLOCKER trial run issues must be closed before submitting approval.");
+    throw new DbWorkflowError("OPEN_BLOCKER_ISSUES", { blockerCount: blockers, runId, runNo: run.runNo });
   }
   const pendingAdjustments = await countPendingAdjustments(client, runId);
   if (pendingAdjustments > 0 && !input.excludePendingAdjustments) {
-    throw new Error("Pending manual adjustments exist; approve them or explicitly exclude them from this run.");
+    throw new DbWorkflowError("PENDING_MANUAL_ADJUSTMENTS", {
+      pendingAdjustmentCount: pendingAdjustments,
+      runId,
+      runNo: run.runNo
+    });
   }
   const submittedAt = input.submittedAt ?? nowIso();
   await client.$executeRawUnsafe(
@@ -602,12 +627,12 @@ export async function rejectSettlementRun(
   input: { rejectedBy: string; reason: string; rejectedAt?: string }
 ): Promise<SettlementRunRecord> {
   if (!input.reason.trim()) {
-    throw new Error("Boss rejection requires a reason.");
+    throw new DbWorkflowError("REJECTION_REASON_REQUIRED", { runId });
   }
   const client = await db();
   const run = await getRequiredSettlementRun(client, runId);
   if (run.status !== "SUBMITTED") {
-    throw new Error("Only submitted settlement runs can be rejected.");
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_REJECTABLE", { runId, runNo: run.runNo, status: run.status });
   }
   const rejectedAt = input.rejectedAt ?? nowIso();
   await client.$executeRawUnsafe(
@@ -635,7 +660,7 @@ export async function approveSettlementRun(
   const client = await db();
   const run = await getRequiredSettlementRun(client, runId);
   if (run.status !== "SUBMITTED") {
-    throw new Error("Only submitted settlement runs can be approved.");
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_APPROVABLE", { runId, runNo: run.runNo, status: run.status });
   }
   const approvedAt = input.approvedAt ?? nowIso();
   const periodId = await getPeriodIdForRun(client, runId);
@@ -664,7 +689,7 @@ export async function exportApprovedSettlementRun(
   const client = await db();
   const run = await getRequiredSettlementRun(client, runId);
   if (!["APPROVED", "EXPORTED"].includes(run.status)) {
-    throw new Error("Only approved settlement runs can be exported.");
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_EXPORTABLE", { runId, runNo: run.runNo, status: run.status });
   }
   const exportedAt = input.exportedAt ?? nowIso();
   const exportType = input.exportType ?? "XLSX";
@@ -697,7 +722,7 @@ export async function createPeriodReopenRequest(input: {
   reason: string;
 }): Promise<PeriodReopenRequestRecord> {
   if (!input.reason.trim()) {
-    throw new Error("Period reopen requires a reason.");
+    throw new DbWorkflowError("PERIOD_REOPEN_REASON_REQUIRED");
   }
   const client = await db();
   const period = await findPeriod(client, input);
@@ -724,7 +749,7 @@ export async function approvePeriodReopenRequest(
   const client = await db();
   const request = await getRequiredReopenRequest(client, requestId);
   if (request.status !== "PENDING") {
-    throw new Error("Only pending reopen requests can be approved.");
+    throw new DbWorkflowError("PERIOD_REOPEN_NOT_PENDING", { requestId, status: request.status });
   }
   const approvedAt = input.approvedAt ?? nowIso();
   await client.$executeRawUnsafe(
@@ -748,12 +773,12 @@ export async function generateTrialRunReport(
   const client = await db();
   const detail = await getTrialRun(trialRunId);
   if (!detail) {
-    throw new Error(`Trial run not found: ${trialRunId}`);
+    throw new DbWorkflowError("TRIAL_RUN_NOT_FOUND", { trialRunId });
   }
   const result = input.result ?? detail.trialRun.result ?? deriveTrialRunResult(detail.issues);
   const approvedRun = [...detail.settlementRuns].reverse().find((run) => ["APPROVED", "EXPORTED"].includes(run.status));
   if (!approvedRun) {
-    throw new Error("Trial run report must bind an approved settlement run.");
+    throw new DbWorkflowError("TRIAL_RUN_REPORT_APPROVED_RUN_REQUIRED", { trialRunId });
   }
   const importBatches = await listCommittedImportBatches(client);
   const acceptedAt = input.acceptedAt ?? nowIso();
@@ -861,6 +886,18 @@ export async function listAdjustments(): Promise<CommissionAdjustmentRecord[]> {
   return rows.map(mapAdjustmentRow);
 }
 
+async function listAdjustmentsForPeriod(periodId: string): Promise<CommissionAdjustmentRecord[]> {
+  const rows = await (await db()).$queryRawUnsafe<AdjustmentRow[]>(
+    `SELECT ca.*, p.periodCode
+       FROM CommissionAdjustment ca
+       JOIN CommissionPeriod p ON p.id = ca.periodId
+      WHERE ca.periodId = ?
+      ORDER BY ca.createdAt DESC`,
+    periodId
+  );
+  return rows.map(mapAdjustmentRow);
+}
+
 export async function listExportBindings(periodId?: string): Promise<CommissionExportBinding[]> {
   const where = periodId ? "WHERE csr.periodId = ?" : "";
   const values = periodId ? [periodId] : [];
@@ -904,8 +941,53 @@ export async function buildTrialRunCheckReportFromDb(periodCode?: string): Promi
   }
   const input = await buildCommissionInputFromDb(client, period.id);
   const snapshot = calculateCommissionSettlement(input);
+  const importBatches = await listCommittedImportBatches(client);
+  const employeeCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM Employee WHERE departmentId = ?`,
+    period.departmentId
+  );
+  const vehicleCount = await countRows(
+    client,
+    `SELECT COUNT(DISTINCT vehicleId) AS countValue FROM LeaseOrderLedger WHERE periodId = ?`,
+    period.id
+  );
+  const orderCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM LeaseOrderLedger WHERE periodId = ?`,
+    period.id
+  );
+  const revenueReceiptCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM RevenueReceiptLedger WHERE periodId = ?`,
+    period.id
+  );
+  const externalProfitReceiptCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM ExternalProfitReceipt WHERE periodId = ?`,
+    period.id
+  );
+  const depositCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM DepositLedger WHERE periodId = ?`,
+    period.id
+  );
+  const vehicleStatusEventCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM VehicleStatusEvent WHERE periodId = ?`,
+    period.id
+  );
   const orderReceivable = await sumColumn(client, "LeaseOrderLedger", "receivableRentAmountCents", period.id);
   const depositTotal = await sumColumn(client, "DepositLedger", "depositAmountCents", period.id);
+  const targetTotal = await sumColumn(client, "CommissionTarget", "targetAmountCents", period.id);
+  const unapprovedRevenue = await sumQuery(
+    client,
+    `SELECT COALESCE(SUM(receiptAmountCents), 0) AS total
+       FROM RevenueReceiptLedger
+      WHERE periodId = ? AND financeReviewStatus <> 'APPROVED'`,
+    period.id
+  );
+  const externalProfitTotal = await sumColumn(client, "ExternalProfitReceipt", "profitAmountCents", period.id);
   const pendingRevenueCount = await countRows(
     client,
     `SELECT COUNT(*) AS countValue FROM RevenueReceiptLedger WHERE periodId = ? AND financeReviewStatus <> 'APPROVED'`,
@@ -928,6 +1010,23 @@ export async function buildTrialRunCheckReportFromDb(periodCode?: string): Promi
     `SELECT COUNT(*) AS countValue FROM DepositLedger WHERE periodId = ? AND refundStatus = 'DISPUTED'`,
     period.id
   );
+  const pendingTargetAdjustmentCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM TargetAdjustmentRequest WHERE periodId = ? AND status = 'PENDING'`,
+    period.id
+  );
+  const approvedTargetAdjustmentCount = await countRows(
+    client,
+    `SELECT COUNT(*) AS countValue FROM TargetAdjustmentRequest WHERE periodId = ? AND status = 'APPROVED'`,
+    period.id
+  );
+  const issueSuggestions = summarizeTrialRunCheckIssues({
+    pendingRevenueCount,
+    abnormalDepositCount,
+    vehicleStatusEventCount,
+    approvedTargetAdjustmentCount,
+    pendingTargetAdjustmentCount
+  });
   const blockingReasons = [
     pendingRevenueCount > 0 ? "There are unapproved revenue receipts." : "",
     period.status === "BOSS_APPROVED" || period.status === "CLOSED" ? "The period has already been approved or closed." : ""
@@ -936,20 +1035,36 @@ export async function buildTrialRunCheckReportFromDb(periodCode?: string): Promi
   return {
     periodCode: period.periodCode,
     departmentName: period.departmentName ?? period.departmentId,
+    periodStatus: period.status,
+    importBatchCount: importBatches.length,
+    importBatchSources: importBatches.map((batch) => batch.importType),
+    employeeCount,
+    vehicleCount,
+    orderCount,
+    revenueReceiptCount,
+    externalProfitReceiptCount,
+    depositCount,
+    vehicleStatusEventCount,
     departmentTargetCents: snapshot.targetAmountCents,
     orderReceivableCents: orderReceivable,
     approvedRentRevenueCents: snapshot.ownedVehicleRevenueAmountCents,
     approvedExternalProfitCents: snapshot.externalProfitAmountCents,
     historicalRecoveredCents: snapshot.historicalReceivableRecoveredAmountCents,
+    targetTotalCents: targetTotal,
+    unapprovedRevenueCents: unapprovedRevenue,
+    externalProfitTotalCents: externalProfitTotal,
     depositTotalCents: depositTotal,
     abnormalDepositCount,
     unpaidOrderCount,
     pendingRevenueCount,
+    pendingTargetAdjustmentCount,
+    approvedTargetAdjustmentCount,
     commissionableRevenueCents: snapshot.confirmedRevenueAmountCents,
     achievementRateBps: snapshot.achievementRateBps,
     estimatedCommissionPoolCents: snapshot.departmentCommissionPoolCents,
     canStartHrCalculation: blockingReasons.length === 0,
-    blockingReasons
+    blockingReasons,
+    issueSuggestions
   };
 }
 
@@ -975,19 +1090,19 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
 
   await cleanupRealPeriodFixture(client, periodId, departmentId);
   await client.$executeRawUnsafe(
-    `INSERT INTO Department (id, name, createdAt, updatedAt) VALUES (?, '直营部', ?, ?)`,
+    `INSERT INTO Department (id, name, createdAt, updatedAt) VALUES (?, '鐩磋惀閮?, ?, ?)`,
     departmentId,
     now,
     now
   );
   for (const employee of [
-    [ids.boss, "老板", "BOSS"],
+    [ids.boss, "鑰佹澘", "BOSS"],
     [ids.hr, "HR", "HR"],
-    [ids.finance, "财务", "FINANCE"],
-    [ids.asset, "资管", "ASSET_MANAGER"],
-    [ids.salesA, "销售 A", "SALES"],
-    [ids.salesB, "销售 B", "SALES"],
-    [ids.salesC, "销售 C", "SALES"]
+    [ids.finance, "璐㈠姟", "FINANCE"],
+    [ids.asset, "璧勭", "ASSET_MANAGER"],
+    [ids.salesA, "閿€鍞?A", "SALES"],
+    [ids.salesB, "閿€鍞?B", "SALES"],
+    [ids.salesC, "閿€鍞?C", "SALES"]
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO Employee (id, name, departmentId, role, loginName, passwordHash, isCommissionable, employmentStatus, createdAt, updatedAt)
@@ -1003,13 +1118,13 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
     );
   }
   for (const vehicle of [
-    [ids.vehicleA, "粤B****1", "LCSREALVINA", "OWNED", 22000000],
-    [ids.vehicleB, "粤B****2", "LCSREALVINB", "OWNED", 18000000],
-    [ids.vehicleC, "粤B****3", "LCSREALVINC", "EXTERNAL", 0]
+    [ids.vehicleA, "绮****1", "LCSREALVINA", "OWNED", 22000000],
+    [ids.vehicleB, "绮****2", "LCSREALVINB", "OWNED", 18000000],
+    [ids.vehicleC, "绮****3", "LCSREALVINC", "EXTERNAL", 0]
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO Vehicle (id, plateNo, vin, brand, model, vehicleSourceType, ownerType, status, monthlyTargetAmountCents, remark, createdAt, updatedAt)
-       VALUES (?, ?, ?, '试运行', '脱敏车辆', ?, ?, 'ACTIVE', ?, 'H05 real-period fixture', ?, ?)`,
+       VALUES (?, ?, ?, '璇曡繍琛?, '鑴辨晱杞﹁締', ?, ?, 'ACTIVE', ?, 'H05 real-period fixture', ?, ?)`,
       vehicle[0],
       vehicle[1],
       vehicle[2],
@@ -1091,7 +1206,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
       periodId,
       departmentId,
       order[2],
-      `客户${order[1].slice(-1)}`,
+      `瀹㈡埛${order[1].slice(-1)}`,
       order[3],
       order[4],
       order[5],
@@ -1108,7 +1223,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
   ] as const) {
     await client.$executeRawUnsafe(
       `INSERT INTO RevenueReceiptLedger (id, orderId, periodId, salesUserId, receiptAmountCents, receiptDate, companyAccount, receiptProofUrl, financeReviewStatus, isCommissionable, revenueKind, financeReviewedBy, financeReviewedAt, remark, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, '2026-05-21T00:00:00.000Z', '公司试运行账户', 'https://mock.local/proof', ?, 1, ?, ?, ?, 'H05 real-period fixture', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, '2026-05-21T00:00:00.000Z', '鍏徃璇曡繍琛岃处鎴?, 'https://mock.local/proof', ?, 1, ?, ?, ?, 'H05 real-period fixture', ?, ?)`,
       receipt[0],
       receipt[1],
       periodId,
@@ -1124,7 +1239,7 @@ export async function seedRealPeriodFixtureForTest(): Promise<RealPeriodFixtureR
   }
   await client.$executeRawUnsafe(
     `INSERT INTO ExternalProfitReceipt (id, orderId, periodId, salesUserId, profitAmountCents, remitDate, companyAccount, receiptProofUrl, financeReviewStatus, isCommissionable, financeReviewedBy, financeReviewedAt, remark, createdAt, updatedAt)
-     VALUES ('real-external-profit-c', 'real-order-c', ?, ?, 8000000, '2026-05-22T00:00:00.000Z', '公司试运行账户', 'https://mock.local/external-profit', 'APPROVED', 1, ?, '2026-06-02T00:00:00.000Z', 'Only remitted profit is recorded', ?, ?)`,
+     VALUES ('real-external-profit-c', 'real-order-c', ?, ?, 8000000, '2026-05-22T00:00:00.000Z', '鍏徃璇曡繍琛岃处鎴?, 'https://mock.local/external-profit', 'APPROVED', 1, ?, '2026-06-02T00:00:00.000Z', 'Only remitted profit is recorded', ?, ?)`,
     periodId,
     ids.salesC,
     ids.finance,
@@ -1450,7 +1565,7 @@ async function buildSnapshotFromRun(runId: string): Promise<SettlementSnapshotRe
   );
   const row = rows[0];
   if (!row) {
-    throw new Error(`Settlement run not found: ${runId}`);
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_FOUND", { runId });
   }
   const lines = await client.$queryRawUnsafe<SettlementLineRow[]>(
     `SELECT csl.*, e.name AS employeeName
@@ -1504,14 +1619,14 @@ async function findPeriod(client: RawDbClient, input: { periodId?: string; perio
     return getRequiredPeriod(client, input.periodId);
   }
   if (!input.periodCode) {
-    throw new Error("periodId or periodCode is required.");
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id: "periodId or periodCode" });
   }
   const rows = await client.$queryRawUnsafe<PeriodRow[]>(
     `SELECT * FROM CommissionPeriod WHERE periodCode = ? ORDER BY createdAt DESC LIMIT 1`,
     input.periodCode
   );
   if (!rows[0]) {
-    throw new Error(`Commission period not found: ${input.periodCode}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id: input.periodCode });
   }
   return rows[0];
 }
@@ -1519,7 +1634,7 @@ async function findPeriod(client: RawDbClient, input: { periodId?: string; perio
 async function getRequiredPeriod(client: RawDbClient, periodId: string): Promise<PeriodRow> {
   const rows = await client.$queryRawUnsafe<PeriodRow[]>(`SELECT * FROM CommissionPeriod WHERE id = ?`, periodId);
   if (!rows[0]) {
-    throw new Error(`Commission period not found: ${periodId}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id: periodId });
   }
   return rows[0];
 }
@@ -1537,7 +1652,7 @@ async function findRuleSet(client: RawDbClient, departmentId: string): Promise<{
     departmentId
   );
   if (!rows[0]) {
-    throw new Error(`No active commission rule set found for department: ${departmentId}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id: `active rule set for ${departmentId}` });
   }
   return rows[0];
 }
@@ -1578,7 +1693,7 @@ async function getRequiredTrialRun(client: RawDbClient, id: string): Promise<Tri
     id
   );
   if (!rows[0]) {
-    throw new Error(`Trial run not found: ${id}`);
+    throw new DbWorkflowError("TRIAL_RUN_NOT_FOUND", { trialRunId: id });
   }
   return mapTrialRunRow(rows[0]);
 }
@@ -1594,7 +1709,7 @@ async function listTrialRunIssues(trialRunId: string): Promise<TrialRunIssueReco
 async function getRequiredIssue(client: RawDbClient, id: string): Promise<TrialRunIssueRecord> {
   const rows = await client.$queryRawUnsafe<TrialRunIssueRow[]>(`SELECT * FROM TrialRunIssue WHERE id = ?`, id);
   if (!rows[0]) {
-    throw new Error(`Trial run issue not found: ${id}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id });
   }
   return mapIssueRow(rows[0]);
 }
@@ -1608,7 +1723,7 @@ async function getRequiredAdjustment(client: RawDbClient, id: string): Promise<C
     id
   );
   if (!rows[0]) {
-    throw new Error(`Commission adjustment not found: ${id}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id });
   }
   return mapAdjustmentRow(rows[0]);
 }
@@ -1623,7 +1738,7 @@ async function getRequiredSettlementRun(client: RawDbClient, id: string): Promis
     id
   );
   if (!rows[0]) {
-    throw new Error(`Settlement run not found: ${id}`);
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_FOUND", { runId: id });
   }
   return mapSettlementRun(rows[0]);
 }
@@ -1666,7 +1781,7 @@ async function getRequiredReport(client: RawDbClient, id: string): Promise<Trial
     id
   );
   if (!rows[0]) {
-    throw new Error(`Trial run report not found: ${id}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id });
   }
   return mapReportRow(rows[0]);
 }
@@ -1680,7 +1795,7 @@ async function getRequiredReopenRequest(client: RawDbClient, id: string): Promis
     id
   );
   if (!rows[0]) {
-    throw new Error(`Period reopen request not found: ${id}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id });
   }
   return mapReopenRequestRow(rows[0]);
 }
@@ -1706,7 +1821,7 @@ async function getRequiredExportBinding(client: RawDbClient, id: string): Promis
     id
   );
   if (!rows[0]) {
-    throw new Error(`Export binding not found: ${id}`);
+    throw new DbWorkflowError("RECORD_NOT_FOUND", { id });
   }
   return mapExportRow(rows[0]);
 }
@@ -1717,7 +1832,7 @@ async function getPeriodIdForRun(client: RawDbClient, runId: string): Promise<st
     runId
   );
   if (!rows[0]) {
-    throw new Error(`Settlement run not found: ${runId}`);
+    throw new DbWorkflowError("SETTLEMENT_RUN_NOT_FOUND", { runId });
   }
   return rows[0].periodId;
 }
@@ -1745,9 +1860,9 @@ async function countPendingAdjustments(client: RawDbClient, runId: string): Prom
   return toNumber(rows[0]?.countValue);
 }
 
-async function listCommittedImportBatches(client: RawDbClient): Promise<Array<{ id: string }>> {
-  return client.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT id FROM ImportBatch WHERE status = 'COMMITTED' ORDER BY committedAt ASC, createdAt ASC`
+async function listCommittedImportBatches(client: RawDbClient): Promise<Array<{ id: string; importType: string; fileName: string }>> {
+  return client.$queryRawUnsafe<Array<{ id: string; importType: string; fileName: string }>>(
+    `SELECT id, importType, fileName FROM ImportBatch WHERE status = 'COMMITTED' ORDER BY committedAt ASC, createdAt ASC`
   );
 }
 
@@ -1756,6 +1871,11 @@ async function sumColumn(client: RawDbClient, table: string, column: string, per
     `SELECT COALESCE(SUM(${column}), 0) AS total FROM ${table} WHERE periodId = ?`,
     periodId
   );
+  return toNumber(rows[0]?.total);
+}
+
+async function sumQuery(client: RawDbClient, query: string, ...values: unknown[]): Promise<number> {
+  const rows = await client.$queryRawUnsafe<Array<{ total: number | bigint | null }>>(query, ...values);
   return toNumber(rows[0]?.total);
 }
 
@@ -1855,10 +1975,10 @@ function buildReportRecord(
     confirmedRevenueAmountCents: snapshot.confirmedRevenueAmountCents,
     achievementRateBps: snapshot.achievementRateBps,
     commissionPoolCents: snapshot.departmentCommissionPoolCents,
-    currentPayoutTotalCents: sum(snapshot.lines.map((line) => line.currentPayoutCents)),
-    futurePayoutTotalCents: sum(snapshot.lines.map((line) => line.futurePayoutCents)),
-    adjustmentTotalCents: sum(snapshot.lines.map((line) => line.adjustmentAmountCents)),
-    frozenTotalCents: sum(snapshot.lines.map((line) => line.frozenAmountCents)),
+    currentPayoutTotalCents: sumCents(snapshot.lines.map((line) => line.currentPayoutCents)),
+    futurePayoutTotalCents: sumCents(snapshot.lines.map((line) => line.futurePayoutCents)),
+    adjustmentTotalCents: sumCents(snapshot.lines.map((line) => line.adjustmentAmountCents)),
+    frozenTotalCents: sumCents(snapshot.lines.map((line) => line.frozenAmountCents)),
     issueCount: detail.issues.length,
     resolvedIssueCount: detail.issues.filter((issue) => issue.status === "RESOLVED").length,
     openIssueCount: detail.issues.filter((issue) => ["OPEN", "FIXING"].includes(issue.status)).length,
@@ -1974,20 +2094,6 @@ function iso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : value;
 }
 
-function toNumber(value: unknown): number {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-  if (typeof value === "bigint") {
-    return Number(value);
-  }
-  return Number(value);
-}
-
-function toBool(value: unknown): boolean {
-  return value === true || value === 1 || value === "1";
-}
-
 function splitList(value: string): string[] {
   return value
     .split(",")
@@ -2001,8 +2107,4 @@ function parseJson<T>(value: string, fallback: T): T {
   } catch {
     return fallback;
   }
-}
-
-function sum(values: number[]): number {
-  return values.reduce((total, value) => total + value, 0);
 }

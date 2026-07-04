@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
 import { createPeriodReopenRequest } from "@/server/trial-run-db-workflow";
 
@@ -16,11 +17,15 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { periodId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { reason?: string };
-  const requestRecord = await createPeriodReopenRequest({
-    periodId,
-    requestedBy: permission.actor.userId,
-    reason: body.reason ?? ""
-  });
+  try {
+    const requestRecord = await createPeriodReopenRequest({
+      periodId,
+      requestedBy: permission.actor.userId,
+      reason: body.reason ?? ""
+    });
 
-  return NextResponse.json({ data: requestRecord }, { status: 201 });
+    return NextResponse.json({ data: requestRecord }, { status: 201 });
+  } catch (error) {
+    return workflowErrorResponse(error);
+  }
 }

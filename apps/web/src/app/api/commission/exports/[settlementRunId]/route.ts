@@ -1,6 +1,8 @@
 import { canExportSettlement } from "@lcs/commission-engine";
 import { NextResponse } from "next/server";
+import { workflowErrorResponse } from "@/server/api-error-response";
 import { requirePermission } from "@/server/auth";
+import { DbWorkflowError } from "@/server/db-workflow-errors";
 import { buildPayoutWorkbook } from "@/server/export";
 import { acceptanceScenarioSettlement } from "@/server/sample";
 import { exportApprovedSettlementRun, getSettlementRun } from "@/server/trial-run-db-workflow";
@@ -23,12 +25,18 @@ export async function POST(request: Request, context: RouteContext) {
   const status = dbRun?.status ?? body.status ?? "APPROVED";
 
   if (!canExportSettlement(status)) {
-    return NextResponse.json({ error: "Only boss-approved settlements can be exported" }, { status: 409 });
+    return workflowErrorResponse(new DbWorkflowError("SETTLEMENT_RUN_NOT_EXPORTABLE", {
+      runNo: dbRun?.runNo ?? settlementRunId,
+      status
+    }));
   }
 
   const exportRecord = dbRun
-    ? await exportApprovedSettlementRun(settlementRunId, { exportedBy: permission.actor.userId })
+    ? await exportApprovedSettlementRun(settlementRunId, { exportedBy: permission.actor.userId }).catch((error) => error)
     : null;
+  if (exportRecord instanceof Error) {
+    return workflowErrorResponse(exportRecord);
+  }
   const workbook = await buildPayoutWorkbook(dbRun?.snapshot ?? body.settlement ?? acceptanceScenarioSettlement, {
     approvalStatus: status,
     approvedBy: dbRun?.approvedBy ?? body.approvedBy ?? "boss",
