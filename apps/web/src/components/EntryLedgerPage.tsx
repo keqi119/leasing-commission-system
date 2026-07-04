@@ -9,24 +9,36 @@ const pageConfig = {
     title: "订单台账",
     subtitle: "销售按考核周期登记订单归属、客户、车辆和应收租金；未收款订单只形成应收，不参与提成。",
     statusLabel: "订单状态",
+    primaryLabel: "订单号",
+    secondaryLabel: "客户与车辆",
+    amountLabel: "应收租金",
     rows: buildOrderRows
   },
   revenue: {
     title: "租金收入台账",
     subtitle: "财务审核进入公司账户的租金收入，已审核且可计提后进入本期试算。",
     statusLabel: "财务审核状态",
+    primaryLabel: "订单号",
+    secondaryLabel: "收入口径",
+    amountLabel: "收款金额",
     rows: buildRevenueRows
   },
   "external-profit": {
     title: "外调利润回款台账",
     subtitle: "外调订单只登记销售打回公司的利润，不做外调收入和成本核算。",
     statusLabel: "财务审核状态",
+    primaryLabel: "订单号",
+    secondaryLabel: "外调利润口径",
+    amountLabel: "外调利润金额",
     rows: buildExternalProfitRows
   },
   deposits: {
     title: "押金台账",
     subtitle: "押金只记录收取、暂管人和退还状态，不进入收入，也不参与提成。",
     statusLabel: "退还状态",
+    primaryLabel: "订单号",
+    secondaryLabel: "押金暂管人",
+    amountLabel: "押金金额",
     rows: buildDepositRows
   }
 } as const;
@@ -104,11 +116,11 @@ export function EntryLedgerPage({ kind }: { kind: LedgerKind }) {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>对象</th>
-                  <th>说明</th>
+                  <th>{config.primaryLabel}</th>
+                  <th>{config.secondaryLabel}</th>
                   <th>销售</th>
-                  <th>金额</th>
-                  <th>状态</th>
+                  <th>{config.amountLabel}</th>
+                  <th>{config.statusLabel}</th>
                   <th>数据来源</th>
                   <th>备注</th>
                 </tr>

@@ -1,5 +1,6 @@
-import { listExportBindings, listSettlementRuns } from "@/server/trial-run-db-workflow";
+import { statusLabel, yesNo } from "@/server/display-labels";
 import { buildExportGuidance } from "@/server/db-workflow-status";
+import { listExportBindings, listSettlementRuns } from "@/server/trial-run-db-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -18,32 +19,32 @@ export default async function ExportsPage() {
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">Bonus Export Records</h1>
+          <h1 className="page-title">奖金发放导出记录</h1>
           <p className="page-subtitle">
-            Formal payout files can only be generated from boss-approved runs and always retain runId / runNo binding.
+            正式发放表只能基于老板审批通过的结算批次生成，并永久保留 runId / runNo 绑定关系。
           </p>
         </div>
-        <span className="badge green">{exportableRuns.length} approved run</span>
+        <span className="badge green">{exportableRuns.length} 个已审批批次</span>
       </header>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Current Status / Next Step</h2>
+          <h2>当前状态与下一步</h2>
           <span className={`badge ${exportGuidance.canExport ? "green" : "amber"}`}>
-            {exportGuidance.canExport ? "can export" : "cannot export"}
+            {exportGuidance.canExport ? "可以导出" : "暂不能导出"}
           </span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
-              <tr><th>Current period</th><td>{latestApprovedRun?.periodCode ?? latestRun?.periodCode ?? "-"}</td></tr>
-              <tr><th>Current Trial Run</th><td>Report must reference the approved run</td></tr>
-              <tr><th>Current Settlement Run</th><td>{latestApprovedRun?.runNo ?? latestRun?.runNo ?? "-"}</td></tr>
-              <tr><th>Current status</th><td>{latestApprovedRun?.status ?? latestRun?.status ?? "No run"}</td></tr>
-              <tr><th>Can submit approval</th><td>{latestRun?.status === "CALCULATED" ? "Yes, after blockers and pending adjustments are clear" : "No"}</td></tr>
-              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
-              <tr><th>Next role</th><td>{exportGuidance.nextRole}</td></tr>
-              <tr><th>Next action</th><td>{exportGuidance.message}</td></tr>
+              <tr><th>当前账期</th><td>{latestApprovedRun?.periodCode ?? latestRun?.periodCode ?? "-"}</td></tr>
+              <tr><th>当前试运行</th><td>试运行报告必须引用最终审批通过的结算批次</td></tr>
+              <tr><th>当前结算批次</th><td>{latestApprovedRun?.runNo ?? latestRun?.runNo ?? "-"}</td></tr>
+              <tr><th>当前状态</th><td>{latestApprovedRun ? statusLabel(latestApprovedRun.status) : latestRun ? statusLabel(latestRun.status) : "暂无结算批次"}</td></tr>
+              <tr><th>是否可提交审批</th><td>{latestRun?.status === "CALCULATED" ? "是，清理阻塞问题和待审批调整后可提交" : "否"}</td></tr>
+              <tr><th>是否可导出</th><td>{yesNo(exportGuidance.canExport)}</td></tr>
+              <tr><th>下一步角色</th><td>{exportGuidance.nextRole}</td></tr>
+              <tr><th>下一步操作</th><td>{exportGuidance.message}</td></tr>
             </tbody>
           </table>
         </div>
@@ -51,21 +52,21 @@ export default async function ExportsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Export Bindings</h2>
+          <h2>导出绑定</h2>
           <span className="badge blue">HR</span>
         </div>
         <div className="panel-body">
           {exports.length === 0 ? (
-            <p className="empty-state">No formal export has been recorded. Approve a settlement run first.</p>
+            <p className="empty-state">暂无正式导出记录。请先完成老板审批。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>File</th>
-                  <th>Bound runNo</th>
-                  <th>Period</th>
-                  <th>Exported by</th>
-                  <th>Exported at</th>
+                  <th>文件名</th>
+                  <th>绑定结算批次号</th>
+                  <th>考核周期</th>
+                  <th>导出人</th>
+                  <th>导出时间</th>
                 </tr>
               </thead>
               <tbody>
@@ -86,8 +87,8 @@ export default async function ExportsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Exportable Runs</h2>
-          <span className="badge green">approved only</span>
+          <h2>可导出批次</h2>
+          <span className="badge green">仅已审批</span>
         </div>
         <div className="panel-body">
           <table className="data-table">
@@ -95,7 +96,7 @@ export default async function ExportsPage() {
               {exportableRuns.map((run) => (
                 <tr key={run.id}>
                   <th>{run.runNo}</th>
-                  <td>{run.status}</td>
+                  <td>{statusLabel(run.status)}</td>
                   <td>{run.approvedBy ?? "-"}</td>
                   <td>{run.approvedAt ?? "-"}</td>
                 </tr>
@@ -107,19 +108,19 @@ export default async function ExportsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Blocked Runs</h2>
-          <span className="badge amber">{blockedRuns.length} blocked</span>
+          <h2>禁止导出批次</h2>
+          <span className="badge amber">{blockedRuns.length} 个不可导出</span>
         </div>
         <div className="panel-body">
           {blockedRuns.length === 0 ? (
-            <p className="empty-state">No blocked run. Use the approved run above for formal export.</p>
+            <p className="empty-state">暂无禁止导出的批次。请使用上方已审批批次导出正式发放表。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>runNo</th>
-                  <th>Status</th>
-                  <th>Reason</th>
+                  <th>结算批次号</th>
+                  <th>状态</th>
+                  <th>禁止原因</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,7 +129,7 @@ export default async function ExportsPage() {
                   return (
                     <tr key={run.id}>
                       <td>{run.runNo}</td>
-                      <td>{run.status}</td>
+                      <td>{statusLabel(run.status)}</td>
                       <td>{guidance.message}</td>
                     </tr>
                   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { statusLabel, yesNo } from "@/server/display-labels";
 import { formatBps, formatCny } from "@/server/sample";
 import { buildTrialRunCheckReportFromDb, listAdjustments, listSettlementRuns } from "@/server/trial-run-db-workflow";
 import { buildExportGuidance, buildSettlementSubmissionGuidance } from "@/server/db-workflow-status";
@@ -22,55 +23,55 @@ export default async function SettlementsPage() {
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">HR Settlement Runs</h1>
+          <h1 className="page-title">HR 提成试算</h1>
           <p className="page-subtitle">
-            Every recalculation creates a new runNo and preserves rejected or approved history.
+            每次重算都会生成新的结算批次号，已驳回和已审批的历史批次会保留。
           </p>
         </div>
         <span className={pendingAdjustmentCount > 0 ? "badge amber" : "badge green"}>
-          {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} pending adjustment` : "ready for approval"}
+          {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} 条调整待处理` : "可进入审批"}
         </span>
       </header>
 
       <section className="metric-grid">
         <div className="metric">
-          <span>Latest runNo</span>
+          <span>最新结算批次</span>
           <strong>{latestRun?.runNo ?? "-"}</strong>
         </div>
         <div className="metric">
-          <span>Department target</span>
+          <span>部门目标</span>
           <strong>{latestRun ? formatCny(latestRun.snapshot.targetAmountCents) : "-"}</strong>
         </div>
         <div className="metric">
-          <span>Department revenue</span>
+          <span>部门实收</span>
           <strong>{latestRun ? formatCny(latestRun.snapshot.confirmedRevenueAmountCents) : "-"}</strong>
         </div>
         <div className="metric">
-          <span>Achievement</span>
+          <span>达成率</span>
           <strong>{latestRun ? formatBps(latestRun.snapshot.achievementRateBps) : "-"}</strong>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Current Status / Next Step</h2>
+          <h2>当前状态与下一步</h2>
           <span className={`badge ${submissionGuidance.canSubmit || exportGuidance.canExport ? "green" : "amber"}`}>
-            {exportGuidance.canExport ? "export ready" : submissionGuidance.canSubmit ? "submit ready" : "blocked"}
+            {exportGuidance.canExport ? "可导出" : submissionGuidance.canSubmit ? "可提交审批" : "需先处理问题"}
           </span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
-              <tr><th>Current period</th><td>{latestRun?.periodCode ?? checkReport?.periodCode ?? "-"}</td></tr>
-              <tr><th>Current Trial Run</th><td>See Trial Runs for issue list and report</td></tr>
-              <tr><th>Current Settlement Run</th><td>{latestRun?.runNo ?? "-"}</td></tr>
-              <tr><th>Current status</th><td>{latestRun?.status ?? "No run"}</td></tr>
-              <tr><th>BLOCKER / MAJOR issue suggestions</th><td>{blockerCount} / {checkReport?.issueSuggestions.filter((issue) => issue.severity === "MAJOR").length ?? 0}</td></tr>
-              <tr><th>Pending adjustments</th><td>{pendingAdjustmentCount}</td></tr>
-              <tr><th>Can submit approval</th><td>{submissionGuidance.canSubmit ? "Yes" : "No"}</td></tr>
-              <tr><th>Can export</th><td>{exportGuidance.canExport ? "Yes" : "No"}</td></tr>
-              <tr><th>Next role</th><td>{exportGuidance.canExport ? exportGuidance.nextRole : submissionGuidance.nextRole}</td></tr>
-              <tr><th>Next action</th><td>{exportGuidance.canExport ? exportGuidance.message : submissionGuidance.message}</td></tr>
+              <tr><th>当前账期</th><td>{latestRun?.periodCode ?? checkReport?.periodCode ?? "-"}</td></tr>
+              <tr><th>当前试运行</th><td>查看试运行闭环页面的问题清单和报告</td></tr>
+              <tr><th>当前结算批次</th><td>{latestRun?.runNo ?? "-"}</td></tr>
+              <tr><th>当前状态</th><td>{latestRun ? statusLabel(latestRun.status) : "暂无结算批次"}</td></tr>
+              <tr><th>阻塞 / 重大问题建议</th><td>{blockerCount} / {checkReport?.issueSuggestions.filter((issue) => issue.severity === "MAJOR").length ?? 0}</td></tr>
+              <tr><th>待处理人工调整</th><td>{pendingAdjustmentCount}</td></tr>
+              <tr><th>是否可提交审批</th><td>{yesNo(submissionGuidance.canSubmit)}</td></tr>
+              <tr><th>是否可导出</th><td>{yesNo(exportGuidance.canExport)}</td></tr>
+              <tr><th>下一步角色</th><td>{exportGuidance.canExport ? exportGuidance.nextRole : submissionGuidance.nextRole}</td></tr>
+              <tr><th>下一步操作</th><td>{exportGuidance.canExport ? exportGuidance.message : submissionGuidance.message}</td></tr>
             </tbody>
           </table>
         </div>
@@ -78,24 +79,24 @@ export default async function SettlementsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Run Versions</h2>
-          <span className="badge blue">DB snapshots</span>
+          <h2>结算批次版本</h2>
+          <span className="badge blue">计算快照</span>
         </div>
         <div className="panel-body">
           {runs.length === 0 ? (
-            <p className="empty-state">No settlement run yet. Import or enter data, then ask HR to calculate a run.</p>
+            <p className="empty-state">暂无结算批次。请先导入或录入数据，再由 HR 发起试算。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>runNo</th>
-                  <th>Period</th>
-                  <th>Status</th>
-                  <th>Revenue</th>
-                  <th>Rate</th>
-                  <th>Pool</th>
-                  <th>Reject reason</th>
-                  <th>Next step</th>
+                  <th>结算批次号</th>
+                  <th>考核周期</th>
+                  <th>状态</th>
+                  <th>部门实收</th>
+                  <th>适用提成比例</th>
+                  <th>部门提成池</th>
+                  <th>驳回原因</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,14 +104,14 @@ export default async function SettlementsPage() {
                   <tr key={run.id}>
                     <td>{run.runNo}</td>
                     <td>{run.periodCode}</td>
-                    <td>{run.status}</td>
+                    <td>{statusLabel(run.status)}</td>
                     <td>{formatCny(run.snapshot.confirmedRevenueAmountCents)}</td>
                     <td>{formatBps(run.snapshot.appliedCommissionRateBps)}</td>
                     <td>{formatCny(run.snapshot.departmentCommissionPoolCents)}</td>
                     <td>{run.rejectionReason ?? "-"}</td>
                     <td>
                       <Link className="button-link secondary" href={`/commission/settlements/${run.id}/diff`}>
-                        Diff
+                        查看差异
                       </Link>
                     </td>
                   </tr>
@@ -123,23 +124,23 @@ export default async function SettlementsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Latest Line Snapshot</h2>
-          <span className="badge green">calculation engine</span>
+          <h2>个人提成明细</h2>
+          <span className="badge green">计算引擎</span>
         </div>
         <div className="panel-body">
           {!latestRun ? (
-            <p className="empty-state">No lines to display.</p>
+            <p className="empty-state">暂无个人明细可展示。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Contribution</th>
-                  <th>Contribution rate</th>
-                  <th>Gross commission</th>
-                  <th>Current payable</th>
-                  <th>Future payout</th>
-                  <th>Adjustment</th>
+                  <th>员工</th>
+                  <th>个人贡献收入</th>
+                  <th>个人贡献率</th>
+                  <th>个人提成总额</th>
+                  <th>本期应发</th>
+                  <th>后续待发</th>
+                  <th>调整金额</th>
                 </tr>
               </thead>
               <tbody>

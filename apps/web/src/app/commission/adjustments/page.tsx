@@ -1,3 +1,4 @@
+import { adjustmentDirectionLabel, adjustmentTypeLabel, statusLabel } from "@/server/display-labels";
 import { formatCny } from "@/server/sample";
 import { listAdjustments, listSettlementRuns } from "@/server/trial-run-db-workflow";
 
@@ -13,39 +14,39 @@ export default async function AdjustmentsPage() {
     <>
       <header className="page-head">
         <div>
-          <h1 className="page-title">Manual Adjustments</h1>
+          <h1 className="page-title">人工调整</h1>
           <p className="page-subtitle">
-            Adjustments are traceable records. They do not mutate original revenue ledgers and only enter a new run after approval.
+            人工调整必须可追溯，不修改原始收入台账；只有老板审批后，才会进入新的结算批次。
           </p>
         </div>
         <span className={pendingAdjustmentCount > 0 ? "badge amber" : "badge blue"}>
-          {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} pending` : `${adjustments.length} records`}
+          {pendingAdjustmentCount > 0 ? `${pendingAdjustmentCount} 条待处理` : `${adjustments.length} 条记录`}
         </span>
       </header>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Current Status / Next Step</h2>
+          <h2>当前状态与下一步</h2>
           <span className={pendingAdjustmentCount > 0 ? "badge amber" : "badge green"}>
-            {pendingAdjustmentCount > 0 ? "approval needed" : "ready"}
+            {pendingAdjustmentCount > 0 ? "需要审批" : "可进入试算"}
           </span>
         </div>
         <div className="panel-body">
           <table className="data-table">
             <tbody>
-              <tr><th>Current period</th><td>{adjustments[0]?.periodCode ?? "-"}</td></tr>
-              <tr><th>Current Trial Run</th><td>See Trial Runs detail for linked period</td></tr>
-              <tr><th>Current Settlement Run</th><td>{runs[0]?.runNo ?? "-"}</td></tr>
-              <tr><th>Pending adjustments</th><td>{pendingAdjustmentCount}</td></tr>
-              <tr><th>Applied adjustments</th><td>{appliedAdjustmentCount}</td></tr>
-              <tr><th>Can submit approval</th><td>{pendingAdjustmentCount > 0 ? "No, unless HR explicitly excludes pending adjustments" : "Yes, after settlement calculation"}</td></tr>
-              <tr><th>Can export</th><td>Only after boss-approved run</td></tr>
+              <tr><th>当前账期</th><td>{adjustments[0]?.periodCode ?? "-"}</td></tr>
+              <tr><th>当前试运行</th><td>请在试运行详情页查看关联账期的问题和报告</td></tr>
+              <tr><th>当前结算批次</th><td>{runs[0]?.runNo ?? "-"}</td></tr>
+              <tr><th>待审批人工调整</th><td>{pendingAdjustmentCount}</td></tr>
+              <tr><th>已进入结算批次</th><td>{appliedAdjustmentCount}</td></tr>
+              <tr><th>是否可提交审批</th><td>{pendingAdjustmentCount > 0 ? "否，除非 HR 明确选择本次不纳入" : "是，完成试算后可提交"}</td></tr>
+              <tr><th>是否可导出</th><td>仅老板审批通过的结算批次可以导出</td></tr>
               <tr>
-                <th>Next action</th>
+                <th>下一步操作</th>
                 <td>
                   {pendingAdjustmentCount > 0
                     ? `不能提交审批：还有 ${pendingAdjustmentCount} 条人工调整未审批。`
-                    : "审批后的人工调整只能进入新 run，已进入 run 的调整不可直接修改。"}
+                    : "审批后的人工调整只能进入新结算批次；已进入批次的调整不能直接修改。"}
                 </td>
               </tr>
             </tbody>
@@ -55,27 +56,27 @@ export default async function AdjustmentsPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Adjustment Records</h2>
-          <span className="badge green">approval required</span>
+          <h2>调整记录</h2>
+          <span className="badge green">需要审批</span>
         </div>
         <div className="panel-body">
           {adjustments.length === 0 ? (
-            <p className="empty-state">No adjustment has been created.</p>
+            <p className="empty-state">暂无人工调整记录。</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Period</th>
-                  <th>User</th>
-                  <th>Type</th>
-                  <th>Direction</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Applied run</th>
-                  <th>Requested by</th>
-                  <th>Approved by</th>
-                  <th>Evidence</th>
-                  <th>Reason</th>
+                  <th>考核周期</th>
+                  <th>调整对象</th>
+                  <th>调整类型</th>
+                  <th>方向</th>
+                  <th>调整金额</th>
+                  <th>状态</th>
+                  <th>进入批次</th>
+                  <th>申请人</th>
+                  <th>审批人</th>
+                  <th>证据链接</th>
+                  <th>原因</th>
                 </tr>
               </thead>
               <tbody>
@@ -83,10 +84,10 @@ export default async function AdjustmentsPage() {
                   <tr key={adjustment.id}>
                     <td>{adjustment.periodCode}</td>
                     <td>{adjustment.userId}</td>
-                    <td>{adjustment.adjustmentType}</td>
-                    <td>{adjustment.direction}</td>
+                    <td>{adjustmentTypeLabel(adjustment.adjustmentType)}</td>
+                    <td>{adjustmentDirectionLabel(adjustment.direction)}</td>
                     <td>{formatCny(adjustment.amountCents)}</td>
-                    <td>{adjustment.status}</td>
+                    <td>{statusLabel(adjustment.status, "adjustment")}</td>
                     <td>{adjustment.appliedRunId ? runNoById.get(adjustment.appliedRunId) ?? adjustment.appliedRunId : "-"}</td>
                     <td>{adjustment.requestedBy}</td>
                     <td>{adjustment.approvedBy ?? "-"}</td>
